@@ -363,11 +363,28 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
         
         await Promise.all(likeDeletePromises);
         
-        // 3. Finalmente, eliminar el post
-        await deleteDoc(postRef);
+        // 3. Si el post tiene una imagen, eliminarla de Cloudinary
+        if (postData.imageUrl) {
+            try {
+                // Extraer el public_id de la URL de Cloudinary
+                // El formato típico es: https://res.cloudinary.com/CLOUD_NAME/image/upload/v1234567890/cetisgram_posts/abc123def456
+                const urlParts = postData.imageUrl.split('/');
+                const filenameWithExtension = urlParts[urlParts.length - 1];
+                const publicId = `cetisgram_posts/${filenameWithExtension.split('.')[0]}`;
+                
+                console.log('Intentando eliminar imagen de Cloudinary:', publicId);
+                
+                // Eliminar la imagen de Cloudinary
+                await cloudinary.uploader.destroy(publicId, { invalidate: true });
+                console.log('Imagen eliminada de Cloudinary con éxito');
+            } catch (cloudinaryError) {
+                console.error('Error al eliminar imagen de Cloudinary:', cloudinaryError);
+                // Continuamos con la eliminación del post aunque falle la eliminación de la imagen
+            }
+        }
         
-        // Si hay una imagen, podríamos eliminarla de Cloudinary aquí
-        // (requeriría código adicional)
+        // 4. Finalmente, eliminar el post
+        await deleteDoc(postRef);
         
         res.json({
             success: true,
