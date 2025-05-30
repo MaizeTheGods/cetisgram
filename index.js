@@ -13,8 +13,21 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'cetisgram-secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 3600000 } // 1 hora
+    cookie: { 
+        // En Render.com, necesitamos permitir cookies sin HTTPS para desarrollo
+        secure: false, 
+        maxAge: 3600000, // 1 hora
+        httpOnly: true,
+        sameSite: 'lax'
+    }
 }));
+
+// Para propósitos de depuración
+app.use((req, res, next) => {
+    console.log('Sesión:', req.session);
+    console.log('Usuario en sesión:', req.session.user);
+    next();
+});
 
 // Configuración de EJS como motor de plantillas
 app.set('view engine', 'ejs');
