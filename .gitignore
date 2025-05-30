@@ -1,0 +1,24 @@
+# Dependencias
+/node_modules
+
+# Archivos de entorno (contienen credenciales privadas)
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Directorios de caché
+.npm
+.eslintcache
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Directorios y archivos de IDE/editores
+.idea
+.vscode
+*.swp
+*.swo
