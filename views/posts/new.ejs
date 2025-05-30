@@ -58,27 +58,57 @@
 
 <!-- Script para la vista previa de imágenes -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const imageInput = document.getElementById('image');
-        const imagePreview = document.getElementById('imagePreview');
-        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    // Ejecutar cuando el DOM está completamente cargado
+    window.onload = function() {
+        // Obtener referencias a los elementos del DOM
+        var imageInput = document.getElementById('image');
+        var imagePreview = document.getElementById('imagePreview');
+        var imagePreviewContainer = document.getElementById('imagePreviewContainer');
         
-        imageInput.addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    imagePreview.src = e.target.result;
-                    imagePreviewContainer.style.display = 'block';
+        // Verificar que los elementos existan para evitar errores
+        if (imageInput && imagePreview && imagePreviewContainer) {
+            // Función para manejar la vista previa
+            function handlePreview() {
+                if (imageInput.files && imageInput.files[0]) {
+                    var reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        // Asegurarse de que la carga se completó correctamente
+                        if (e.target && e.target.result) {
+                            imagePreview.src = e.target.result;
+                            imagePreviewContainer.style.display = 'block';
+                        }
+                    };
+                    
+                    // Capturar errores en la lectura del archivo
+                    reader.onerror = function() {
+                        console.error('Error al leer el archivo');
+                        imagePreviewContainer.style.display = 'none';
+                    };
+                    
+                    try {
+                        reader.readAsDataURL(imageInput.files[0]);
+                    } catch(err) {
+                        console.error('Error al procesar la imagen:', err);
+                    }
+                } else {
+                    // No hay archivo seleccionado
+                    imagePreview.src = '#';
+                    imagePreviewContainer.style.display = 'none';
                 }
-                
-                reader.readAsDataURL(this.files[0]);
-            } else {
-                imagePreview.src = '#';
-                imagePreviewContainer.style.display = 'none';
             }
-        });
-    });
+            
+            // Asignar el manejador de eventos
+            imageInput.addEventListener('change', handlePreview, false);
+            
+            // Verificación inicial (por si hay una imagen ya seleccionada)
+            handlePreview();
+            
+            console.log('Vista previa de imágenes inicializada correctamente');
+        } else {
+            console.error('No se encontraron todos los elementos necesarios para la vista previa');
+        }
+    };
 </script>
 
 <%- include('../partials/footer') %>
