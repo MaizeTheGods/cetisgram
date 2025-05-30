@@ -74,15 +74,17 @@
     </div>
     <div class="card-body">
         <% if (locals.user || true) { %>
-            <!-- Formulario para añadir comentarios -->
-            <form id="commentForm" action="/comments/new" method="POST" class="mb-4">
-                <input type="hidden" name="postId" value="<%= post.id %>">
+            <!-- Formulario para añadir comentarios con AJAX -->
+            <form id="commentForm" class="mb-4">
+                <input type="hidden" name="postId" id="postId" value="<%= post.id %>">
                 <div class="mb-3">
                     <label for="content" class="form-label">Añadir un comentario:</label>
-                    <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
+                    <textarea class="form-control" id="commentContent" name="content" rows="3" required></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="far fa-paper-plane"></i> Publicar comentario
+                <div id="commentError" class="alert alert-danger" style="display: none;"></div>
+                <button type="submit" id="submitCommentBtn" class="btn btn-primary">
+                    <i class="far fa-paper-plane"></i> <span id="submitBtnText">Publicar comentario</span>
+                    <span id="submitSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
                 </button>
                 <% if (!locals.user) { %>
                     <small class="text-muted ms-2">Comentarás como anónimo. <a href="/auth/login">Inicia sesión</a> para usar tu nombre.</small>
@@ -140,9 +142,191 @@
     </div>
 </div>
 
-<!-- Script para el manejo de comentarios y likes -->
+<!-- Script para el manejo de likes y eliminación de comentarios -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Manejo del formulario de comentarios con AJAX
+        const commentForm = document.getElementById('commentForm');
+        if (commentForm) {
+            commentForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Obtener los valores del formulario
+                const postId = document.getElementById('postId').value;
+                const content = document.getElementById('commentContent').value;
+                
+                // Validar que haya contenido
+                if (!content.trim()) {
+                    showCommentError('El comentario no puede estar vacío');
+                    return;
+                }
+                
+                // Mostrar spinner y deshabilitar botón
+                toggleCommentLoading(true);
+                
+                try {
+                    const response = await fetch('/comments/new', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            postId,
+                            content
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Limpiar formulario
+                        document.getElementById('commentContent').value = '';
+                        hideCommentError();
+                        
+                        // Agregar el nuevo comentario a la lista
+                        addNewCommentToUI(data.comment);
+                        
+                        // Actualizar contador
+                        updateCommentCount(1);
+                    } else {
+                        showCommentError(data.message || 'Error al publicar el comentario');
+                    }
+                } catch (error) {
+                    console.error('Error al enviar comentario:', error);
+                    showCommentError('Hubo un error al publicar el comentario. Inténtalo de nuevo.');
+                } finally {
+                    toggleCommentLoading(false);
+                }
+            });
+        }
+        
+        // Funciones auxiliares para el formulario de comentarios
+        function showCommentError(message) {
+            const errorDiv = document.getElementById('commentError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function hideCommentError() {
+            const errorDiv = document.getElementById('commentError');
+            errorDiv.style.display = 'none';
+        }
+        
+        function toggleCommentLoading(isLoading) {
+            const submitBtn = document.getElementById('submitCommentBtn');
+            const submitText = document.getElementById('submitBtnText');
+            const spinner = document.getElementById('submitSpinner');
+            
+            submitBtn.disabled = isLoading;
+            spinner.style.display = isLoading ? 'inline-block' : 'none';
+            submitText.innerText = isLoading ? 'Publicando...' : 'Publicar comentario';
+        }
+        
+        function addNewCommentToUI(comment) {
+            const commentsList = document.getElementById('commentsList');
+            const noCommentsMessage = document.getElementById('noCommentsMessage');
+            
+            // Si no hay comentarios, eliminar el mensaje
+            if (noCommentsMessage) {
+                noCommentsMessage.remove();
+            }
+            
+            // Crear el elemento del comentario
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment mb-4 border-bottom pb-3';
+            commentElement.id = `comment-${comment.id}`;
+            
+            // Determinar si mostrar botones de edición/eliminación
+            const currentUserId = '<%= locals.user ? locals.user.uid : "" %>';
+            const isAdmin = '<%= locals.user ? locals.user.isAdmin : "false" %>' === 'true';
+            const showActions = currentUserId === comment.authorId || isAdmin;
+            
+            // HTML del comentario
+            commentElement.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <h6 class="mb-1">
+                        <i class="fas fa-user-circle me-1"></i>
+                        ${comment.authorName || 'Anónimo'}
+                        ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
+                    </h6>
+                    <small class="text-muted">
+                        <i class="far fa-clock me-1"></i> ${comment.createdAt}
+                    </small>
+                </div>
+                
+                <div class="comment-content my-2">
+                    ${comment.content}
+                </div>
+                
+                ${showActions ? `
+                <div class="comment-actions">
+                    <button class="btn btn-sm btn-link text-primary edit-comment-btn" data-comment-id="${comment.id}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn btn-sm btn-link text-danger delete-comment-btn" data-comment-id="${comment.id}">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </div>
+                ` : ''}
+            `;
+            
+            // Agregar el comentario al principio de la lista
+            commentsList.insertBefore(commentElement, commentsList.firstChild);
+            
+            // Agregar event listener para el botón de eliminar
+            const deleteBtn = commentElement.querySelector('.delete-comment-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', handleDeleteComment);
+            }
+        }
+        
+        function updateCommentCount(increment) {
+            const commentCount = document.getElementById('commentCount');
+            const currentCount = parseInt(commentCount.innerText);
+            commentCount.innerText = currentCount + increment;
+        }
+        
+        function handleDeleteComment() {
+            if (confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
+                const commentId = this.getAttribute('data-comment-id');
+                
+                try {
+                    fetch(`/comments/${commentId}`, {
+                        method: 'DELETE'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Eliminar el comentario de la UI
+                            document.getElementById(`comment-${commentId}`).remove();
+                            
+                            // Actualizar contador
+                            updateCommentCount(-1);
+                            
+                            // Mostrar mensaje si no hay comentarios
+                            if (parseInt(document.getElementById('commentCount').innerText) === 0) {
+                                const commentsList = document.getElementById('commentsList');
+                                commentsList.innerHTML = `
+                                    <div class="alert alert-light" id="noCommentsMessage">
+                                        <p class="mb-0">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Hubo un error al eliminar el comentario');
+                    });
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Hubo un error al eliminar el comentario');
+                }
+            }
+        }
+
         // Manejo de likes
         const likeButton = document.getElementById('likeButton');
         if (likeButton) {
@@ -150,10 +334,7 @@
                 const postId = this.getAttribute('data-post-id');
                 try {
                     const response = await fetch(`/posts/${postId}/like`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
+                        method: 'POST'
                     });
                     
                     const data = await response.json();
@@ -171,6 +352,8 @@
                             likeButton.classList.remove('btn-danger');
                             likeButton.classList.add('btn-outline-danger');
                         }
+                    } else {
+                        alert('Error: ' + data.message);
                     }
                 } catch (error) {
                     console.error('Error:', error);
@@ -179,129 +362,37 @@
             });
         }
         
-        // Manejo de envío de comentarios
-        const commentForm = document.getElementById('commentForm');
-        if (commentForm) {
-            commentForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const postId = this.querySelector('input[name="postId"]').value;
-                const content = this.querySelector('textarea[name="content"]').value;
-                
-                try {
-                    const response = await fetch('/comments/new', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ postId, content })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        // Resetear el formulario
-                        this.reset();
-                        
-                        // Actualizar lista de comentarios
-                        const commentsList = document.getElementById('commentsList');
-                        const noCommentsMessage = document.getElementById('noCommentsMessage');
-                        
-                        if (noCommentsMessage) {
-                            noCommentsMessage.remove();
-                        }
-                        
-                        // Crear nuevo elemento de comentario
-                        const newComment = document.createElement('div');
-                        newComment.className = 'comment mb-4 border-bottom pb-3';
-                        newComment.id = `comment-${data.comment.id}`;
-                        
-                        newComment.innerHTML = `
-                            <div class="d-flex justify-content-between">
-                                <h6 class="mb-1">
-                                    <i class="fas fa-user-circle me-1"></i>
-                                    ${data.comment.authorName}
-                                    ${data.comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
-                                </h6>
-                                <small class="text-muted">
-                                    <i class="far fa-clock me-1"></i> ${data.comment.createdAt}
-                                </small>
-                            </div>
-                            
-                            <div class="comment-content my-2">
-                                ${data.comment.content}
-                            </div>
-                        `;
-                        
-                        // Añadir botones de acciones si es el autor
-                        if (data.comment.authorId === '<%= locals.user ? locals.user.uid : "" %>') {
-                            newComment.innerHTML += `
-                                <div class="comment-actions">
-                                    <button class="btn btn-sm btn-link text-primary edit-comment-btn" data-comment-id="${data.comment.id}">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button class="btn btn-sm btn-link text-danger delete-comment-btn" data-comment-id="${data.comment.id}">
-                                        <i class="fas fa-trash"></i> Eliminar
-                                    </button>
-                                </div>
-                            `;
-                        }
-                        
-                        // Insertar el comentario al principio de la lista
-                        commentsList.insertBefore(newComment, commentsList.firstChild);
-                        
-                        // Actualizar contador de comentarios
-                        const commentCount = document.getElementById('commentCount');
-                        commentCount.innerText = parseInt(commentCount.innerText) + 1;
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Hubo un error al enviar tu comentario');
-                }
-            });
-        }
-        
-        // Manejo de eliminación de comentarios
-        document.querySelectorAll('.delete-comment-btn').forEach(button => {
-            button.addEventListener('click', async function() {
-                if (confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
-                    const commentId = this.getAttribute('data-comment-id');
+        // Manejo de eliminación de posts
+        const deletePostBtn = document.getElementById('deletePostBtn');
+        if (deletePostBtn) {
+            deletePostBtn.addEventListener('click', async function() {
+                if (confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.')) {
+                    const postId = this.getAttribute('data-post-id');
                     
                     try {
-                        const response = await fetch(`/comments/${commentId}`, {
+                        const response = await fetch(`/posts/${postId}`, {
                             method: 'DELETE'
                         });
                         
                         const data = await response.json();
                         
                         if (data.success) {
-                            // Eliminar el comentario de la UI
-                            document.getElementById(`comment-${commentId}`).remove();
-                            
-                            // Actualizar contador
-                            const commentCount = document.getElementById('commentCount');
-                            commentCount.innerText = parseInt(commentCount.innerText) - 1;
-                            
-                            // Mostrar mensaje si no hay comentarios
-                            if (parseInt(commentCount.innerText) === 0) {
-                                const commentsList = document.getElementById('commentsList');
-                                commentsList.innerHTML = `
-                                    <div class="alert alert-light" id="noCommentsMessage">
-                                        <p class="mb-0">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
-                                    </div>
-                                `;
-                            }
+                            alert('Post eliminado correctamente');
+                            window.location.href = '/posts'; // Redireccionar a la lista de posts
                         } else {
                             alert('Error: ' + data.message);
                         }
                     } catch (error) {
-                        console.error('Error:', error);
-                        alert('Hubo un error al eliminar el comentario');
+                        console.error('Error al eliminar post:', error);
+                        alert('Hubo un error al eliminar el post');
                     }
                 }
             });
+        }
+        
+        // Manejo de eliminación de comentarios (para comentarios existentes)
+        document.querySelectorAll('.delete-comment-btn').forEach(button => {
+            button.addEventListener('click', handleDeleteComment);
         });
     });
 </script>

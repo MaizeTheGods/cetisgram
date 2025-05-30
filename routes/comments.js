@@ -17,14 +17,19 @@ const isAuthenticated = (req, res, next) => {
 // Agregar un comentario a un post
 router.post('/new', async (req, res) => {
     try {
+        console.log('Recibiendo solicitud de comentario:', req.body);
         const { postId, content } = req.body;
         
         if (!postId || !content) {
+            console.error('Faltan datos:', { postId, content });
+            // Siempre devolver JSON ya que estamos usando AJAX
             return res.status(400).json({ 
                 success: false, 
                 message: 'El ID del post y contenido son obligatorios' 
             });
         }
+        
+        console.log('Sesión actual:', req.session);
         
         // Verificar que el post exista
         const postRef = doc(db, 'posts', postId);
@@ -66,21 +71,15 @@ router.post('/new', async (req, res) => {
         // Guardar el comentario en Firestore
         const commentRef = await addDoc(collection(db, 'comments'), commentData);
         
-        // Redirigir a la página del post
-        if (req.xhr) {
-            // Si es una solicitud AJAX, devolver JSON
-            res.json({ 
-                success: true, 
-                comment: {
-                    id: commentRef.id,
-                    ...commentData,
-                    createdAt: commentData.createdAt.toLocaleString()
-                }
-            });
-        } else {
-            // Si es una solicitud normal, redirigir
-            res.redirect(`/posts/${postId}`);
-        }
+        // Siempre devolver JSON ya que estamos usando AJAX
+        res.json({ 
+            success: true, 
+            comment: {
+                id: commentRef.id,
+                ...commentData,
+                createdAt: commentData.createdAt.toLocaleString()
+            }
+        });
     } catch (error) {
         console.error('Error al crear comentario:', error);
         

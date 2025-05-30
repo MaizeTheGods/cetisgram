@@ -311,4 +311,75 @@ router.post('/:id/like', isAuthenticated, async (req, res) => {
     }
 });
 
+// Eliminar un post (solo si eres el dueño o administrador)
+router.delete('/:id', isAuthenticated, async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.session.user.uid;
+        const isAdmin = req.session.user.isAdmin || false;
+        
+        // Obtener el post
+        const postRef = doc(db, 'posts', postId);
+        const postSnap = await getDoc(postRef);
+        
+        if (!postSnap.exists()) {
+            return res.status(404).json({
+                success: false,
+                message: 'Post no encontrado'
+            });
+        }
+        
+        const postData = postSnap.data();
+        
+        // Verificar que el usuario sea el autor o administrador
+        if (userId !== postData.authorId && !isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: 'No tienes permiso para eliminar este post'
+            });
+        }
+        
+        // 1. Eliminar los comentarios asociados al post
+        const commentsRef = collection(db, 'comments');
+        const commentsQuery = query(commentsRef, where('postId', '==', postId));
+        const commentsSnap = await getDocs(commentsQuery);
+        
+        const commentDeletePromises = [];
+        commentsSnap.forEach(commentDoc => {
+            commentDeletePromises.push(deleteDoc(doc(db, 'comments', commentDoc.id)));
+        });
+        
+        await Promise.all(commentDeletePromises);
+        
+        // 2. Eliminar los likes asociados al post
+        const likesRef = collection(db, 'likes');
+        const likesQuery = query(likesRef, where('postId', '==', postId));
+        const likesSnap = await getDocs(likesQuery);
+        
+        const likeDeletePromises = [];
+        likesSnap.forEach(likeDoc => {
+            likeDeletePromises.push(deleteDoc(doc(db, 'likes', likeDoc.id)));
+        });
+        
+        await Promise.all(likeDeletePromises);
+        
+        // 3. Finalmente, eliminar el post
+        await deleteDoc(postRef);
+        
+        // Si hay una imagen, podríamos eliminarla de Cloudinary aquí
+        // (requeriría código adicional)
+        
+        res.json({
+            success: true,
+            message: 'Post eliminado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al eliminar post:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar el post'
+        });
+    }
+});
+
 module.exports = router;
