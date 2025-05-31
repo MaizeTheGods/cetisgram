@@ -54,40 +54,54 @@ router.get('/', async (req, res) => {
         
         // Primero, obtener los posts fijados (solo para la primera página)
         let pinnedPosts = [];
-        if (!cursor) {
-            const pinnedQuery = query(
-                postsRef,
-                where('isPinned', '==', true),
-                orderBy('createdAt', 'desc')
-            );
-            const pinnedSnapshot = await getDocs(pinnedQuery);
-            pinnedSnapshot.forEach(doc => {
-                pinnedPosts.push({
-                    id: doc.id,
-                    ...doc.data(),
-                    createdAt: doc.data().createdAt ? new Date(doc.data().createdAt.seconds * 1000).toLocaleString() : 'Fecha desconocida'
+        try {
+            if (!cursor) {
+                const pinnedQuery = query(
+                    postsRef,
+                    where('isPinned', '==', true),
+                    orderBy('createdAt', 'desc')
+                );
+                const pinnedSnapshot = await getDocs(pinnedQuery);
+                pinnedSnapshot.forEach(doc => {
+                    pinnedPosts.push({
+                        id: doc.id,
+                        ...doc.data(),
+                        createdAt: doc.data().createdAt ? new Date(doc.data().createdAt.seconds * 1000).toLocaleString() : 'Fecha desconocida'
+                    });
                 });
-            });
+            }
+        } catch (e) {
+            // Si falla, continuar sin posts fijados
+            pinnedPosts = [];
         }
         
         // Luego, obtener los posts no fijados con paginación
-        if (cursor) {
-            // Obtener el documento de referencia para startAfter
-            const cursorDocRef = doc(db, 'posts', cursor);
-            const cursorDocSnapshot = await getDoc(cursorDocRef);
-            
+        try {
+            if (cursor) {
+                // Obtener el documento de referencia para startAfter
+                const cursorDocRef = doc(db, 'posts', cursor);
+                const cursorDocSnapshot = await getDoc(cursorDocRef);
+                
+                q = query(
+                    postsRef,
+                    where('isPinned', '==', false),
+                    orderBy('createdAt', 'desc'), 
+                    startAfter(cursorDocSnapshot),
+                    limit(postsPerPage)
+                );
+            } else {
+                q = query(
+                    postsRef,
+                    where('isPinned', '==', false),
+                    orderBy('createdAt', 'desc'), 
+                    limit(postsPerPage)
+                );
+            }
+        } catch (e) {
+            // Si falla, obtener todos los posts sin filtrar por isPinned
             q = query(
                 postsRef,
-                where('isPinned', '==', false),
-                orderBy('createdAt', 'desc'), 
-                startAfter(cursorDocSnapshot),
-                limit(postsPerPage)
-            );
-        } else {
-            q = query(
-                postsRef,
-                where('isPinned', '==', false),
-                orderBy('createdAt', 'desc'), 
+                orderBy('createdAt', 'desc'),
                 limit(postsPerPage)
             );
         }
