@@ -5,10 +5,10 @@
 
 /* Sistema de diseño: Variables globales */
 :root {
-  /* Colores primarios */
-  --primary-color: #2563EB;
-  --primary-dark: #1E40AF;
-  --primary-light: #DBEAFE;
+  /* Colores primarios - paleta más vibrante */
+  --primary-color: #4F46E5;
+  --primary-dark: #4338CA;
+  --primary-light: #E0E7FF;
   
   /* Colores neutrales */
   --neutral-50: #F9FAFB;
@@ -93,27 +93,61 @@ footer {
   color: var(--neutral-200);
 }
 
-/* Navbar personalizada - simplificada y más limpia */
+/* Navbar personalizada - diseño moderno con efecto de cristal */
 .navbar {
   height: var(--header-height);
-  box-shadow: var(--shadow-sm);
-  background: var(--primary-color);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
   padding: var(--space-2) 0;
+  position: relative;
+  z-index: 1000;
+}
+
+.navbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  z-index: -1;
 }
 
 .navbar-dark .navbar-nav .nav-link {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  transition: all var(--transition-base);
+  transition: all 0.3s ease;
   margin: 0 var(--space-1);
+  position: relative;
+}
+
+.navbar-dark .navbar-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0.25rem;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: white;
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+  opacity: 0;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover::after,
+.navbar-dark .navbar-nav .nav-link:focus::after,
+.navbar-dark .navbar-nav .nav-item.active .nav-link::after {
+  width: 60%;
+  opacity: 1;
 }
 
 .navbar-dark .navbar-nav .nav-link:hover,
 .navbar-dark .navbar-nav .nav-link:focus {
   color: white;
-  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
 .navbar-brand {
@@ -144,13 +178,33 @@ footer {
   border: none;
   box-shadow: var(--shadow-sm);
   background-color: var(--card-bg);
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: all 0.3s ease;
   margin-bottom: var(--space-6);
+  position: relative;
+  z-index: 1;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(0, 0, 0, 0) 50%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: var(--radius-lg);
 }
 
 .card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-md);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card-header {
@@ -160,9 +214,38 @@ footer {
   padding: var(--space-4);
 }
 
-/* Posts - mejorando la legibilidad y jerarquía */
+/* Posts - mejorando la legibilidad y jerarquía con efectos modernos */
 .post {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   margin-bottom: var(--space-8);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: var(--space-5);
+}
+
+.post::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right, var(--primary-color), var(--primary-light));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.post:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.post:hover::after {
+  opacity: 1;
 }
 
 .post-header {
@@ -290,20 +373,42 @@ footer {
   font-size: 0.9em;
 }
 
-/* Botones primarios - más llamativos con degradado sutil */
+/* Botones primarios - con estilo moderno y efecto de brillo */
 .btn-primary {
-  background: linear-gradient(to bottom right, var(--primary-color), var(--primary-dark));
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
   color: white;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+  z-index: -1;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(to bottom right, #1D4ED8, #1E40AF);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+  background: linear-gradient(135deg, #4338CA, #3730A3);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:hover::before {
+  transform: translateX(100%);
 }
 
 .btn-primary:focus {
-  box-shadow: 0 0 0 2px var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
+  outline: none;
 }
 
 /* Botones secundarios y de énfasis */
@@ -379,20 +484,37 @@ footer {
 
 .form-control {
   width: 100%;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--neutral-300);
-  background-color: white;
-  color: var(--neutral-800);
+  border-radius: var(--radius-md);
   font-size: 1rem;
-  line-height: 1.5;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
+  background-color: #FCFCFD;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.form-control:hover {
+  border-color: var(--neutral-400);
 }
 
 .form-control:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  background-color: white;
   outline: none;
+}
+
+.form-label {
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+  color: var(--neutral-700);
+  display: inline-block;
+  font-size: 0.95rem;
+}
+
+.form-group {
+  margin-bottom: var(--space-5);
+  position: relative;
 }
 
 .form-control::placeholder {
@@ -600,49 +722,74 @@ h6 {
   font-size: 0.875rem;
 }
 
-/* Estilos para el modal de reglas - con mejor diseño y legibilidad */
+/* Estilos para el modal de reglas - con mejor diseño y efectos visuales modernos */
 .modal-dialog {
   margin-top: 4rem;
+  max-width: 600px;
 }
 
 .modal-content {
   border: none;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  background: white;
+  position: relative;
+}
+
+.modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(to right, var(--danger-color), #FF6B6B);
 }
 
 .modal-header {
   border-bottom: 1px solid var(--neutral-200);
-  padding: var(--space-4);
+  padding: var(--space-6);
+  position: relative;
+  background-color: white;
 }
 
 .modal-body {
-  padding: var(--space-6);
+  padding: var(--space-8);
+  background-color: white;
 }
 
 .modal-footer {
   border-top: 1px solid var(--neutral-200);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  background-color: var(--neutral-50);
 }
 
 #rulesModal .modal-content {
   background-color: white;
   color: var(--neutral-800);
-  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 #rulesModal .modal-header {
-  background-color: var(--neutral-50);
   border-bottom: 1px solid var(--neutral-200);
   color: var(--neutral-900);
-  font-weight: 600;
-  padding: var(--space-4);
+  font-weight: 700;
+  padding: var(--space-6);
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.05), transparent);
+}
+
+#rulesModal .modal-title {
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.01em;
 }
 
 #rulesModal .modal-header i {
   color: var(--danger-color);
-  margin-right: var(--space-2);
+  margin-right: var(--space-3);
+  font-size: 1.4rem;
 }
 
 #rulesModal .modal-body {
@@ -651,13 +798,39 @@ h6 {
 
 #rulesModal .rules-list {
   padding-left: var(--space-6);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 #rulesModal .rules-list li {
   margin-bottom: var(--space-3);
   color: var(--neutral-800);
   line-height: 1.6;
+}
+
+/* Mejorando el espaciado en el alerta del modal */
+#rulesModal .alert {
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border-left: 4px solid var(--danger-color);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+#rulesModal .alert p {
+  margin-bottom: var(--space-3);
+}
+
+#rulesModal .alert p:last-child {
+  margin-bottom: 0;
+}
+
+#rulesModal .alert i {
+  margin-right: var(--space-2);
+  color: var(--danger-color);
+}
+
+#rulesModal .text-underline {
+  border-bottom: 1px solid var(--danger-color);
+  padding-bottom: 2px;
 }
 
 /* Ajustes responsivos */
