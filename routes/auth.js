@@ -42,14 +42,17 @@ router.post('/register', async (req, res) => {
             username: username,
             email: email,
             createdAt: new Date(),
-            photoURL: null
+            photoURL: null,
+            role: 'estudiante'  // Rol por defecto para nuevos usuarios
         });
 
         // Establecer la sesión
         req.session.user = {
             uid: user.uid,
             email: user.email,
-            username: username
+            username: username,
+            role: 'estudiante', // Rol por defecto para nuevos usuarios
+            isAdmin: false
         };
 
         res.redirect('/');
@@ -107,7 +110,9 @@ router.post('/login', async (req, res) => {
             uid: user.uid,
             email: user.email,
             username: userData.username,
-            photoURL: userData.photoURL
+            photoURL: userData.photoURL,
+            role: userData.role || 'estudiante', // Asignar rol predeterminado si no existe
+            isAdmin: userData.role === 'admin' // Flag para acceso rápido a permisos de admin
         };
 
         res.redirect('/');
@@ -136,7 +141,9 @@ router.get('/anonymous', (req, res) => {
     req.session.user = {
         uid: anonymousId,
         isAnonymous: true,
-        username: 'Anónimo_' + anonymousId.substring(5, 10)
+        username: 'Anónimo_' + anonymousId.substring(5, 10),
+        role: 'estudiante', // Rol por defecto para usuarios anónimos
+        isAdmin: false
     };
     
     res.redirect('/');

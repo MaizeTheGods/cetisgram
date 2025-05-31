@@ -15,6 +15,16 @@
         <div class="d-flex justify-content-between text-muted mb-4">
             <div>
                 <i class="fas fa-user me-1"></i> <%= post.authorName || 'Anónimo' %>
+                <% if (post.authorRole) { %>
+                    <span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %> ms-1">
+                        <%= post.authorRole %>
+                    </span>
+                <% } %>
+                <% if (post.isPinned) { %>
+                    <span class="badge bg-primary ms-1" title="Post fijado">
+                        <i class="fas fa-thumbtack me-1"></i>Fijado
+                    </span>
+                <% } %>
             </div>
             <div>
                 <i class="far fa-clock me-1"></i> <%= post.createdAt %>
@@ -80,13 +90,20 @@
             </div>
             
             <div>
-                <% if (locals.user && locals.user.uid === post.authorId) { %>
-                    <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
-                        <i class="fas fa-edit"></i> Editar
-                    </a>
-                    <button class="btn btn-sm btn-outline-danger" id="deletePostBtn" data-post-id="<%= post.id %>">
+                <% if (locals.user && (locals.user.uid === post.authorId || locals.user.isAdmin)) { %>
+                    <% if (locals.user.uid === post.authorId) { %>
+                        <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                    <% } %>
+                    <button class="btn btn-sm btn-outline-danger me-1" id="deletePostBtn" data-post-id="<%= post.id %>">
                         <i class="fas fa-trash"></i> Eliminar
                     </button>
+                    <% if (locals.user.isAdmin) { %>
+                        <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %>" id="pinPostBtn" data-post-id="<%= post.id %>">
+                            <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
+                        </button>
+                    <% } %>
                 <% } %>
             </div>
         </div>
@@ -411,6 +428,62 @@
                     } catch (error) {
                         console.error('Error al eliminar post:', error);
                         alert('Hubo un error al eliminar el post');
+                    }
+                }
+            });
+        }
+        
+        // Manejo de fijar/desfijar posts (solo para administradores)
+        const pinPostBtn = document.getElementById('pinPostBtn');
+        if (pinPostBtn) {
+            pinPostBtn.addEventListener('click', async function() {
+                const postId = this.getAttribute('data-post-id');
+                const isPinned = this.textContent.trim().includes('Desfijar');
+                const action = isPinned ? 'desfijar' : 'fijar';
+                
+                if (confirm(`¿Estás seguro de que quieres ${action} este post?`)) {
+                    try {
+                        const response = await fetch(`/posts/${postId}/pin`, {
+                            method: 'POST'
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Actualizar el botón
+                            if (data.isPinned) {
+                                this.innerHTML = '<i class="fas fa-thumbtack"></i> Desfijar';
+                                this.classList.remove('btn-outline-primary');
+                                this.classList.add('btn-primary');
+                                
+                                // Añadir el badge de fijado si no existe
+                                const authorInfo = document.querySelector('.d-flex.justify-content-between.text-muted.mb-4 > div:first-child');
+                                if (!authorInfo.querySelector('.badge.bg-primary')) {
+                                    const pinnedBadge = document.createElement('span');
+                                    pinnedBadge.className = 'badge bg-primary ms-1';
+                                    pinnedBadge.title = 'Post fijado';
+                                    pinnedBadge.innerHTML = '<i class="fas fa-thumbtack me-1"></i>Fijado';
+                                    authorInfo.appendChild(pinnedBadge);
+                                }
+                            } else {
+                                this.innerHTML = '<i class="fas fa-thumbtack"></i> Fijar';
+                                this.classList.remove('btn-primary');
+                                this.classList.add('btn-outline-primary');
+                                
+                                // Eliminar el badge de fijado si existe
+                                const pinnedBadge = document.querySelector('.badge.bg-primary[title="Post fijado"]');
+                                if (pinnedBadge) {
+                                    pinnedBadge.remove();
+                                }
+                            }
+                            
+                            alert(`Post ${data.isPinned ? 'fijado' : 'desfijado'} correctamente`);
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    } catch (error) {
+                        console.error('Error al fijar/desfijar post:', error);
+                        alert('Hubo un error al procesar tu solicitud');
                     }
                 }
             });

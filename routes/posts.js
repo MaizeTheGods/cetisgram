@@ -29,7 +29,9 @@ const allowAnyUser = (req, res, next) => {
     req.session.user = {
         uid: anonymousId,
         isAnonymous: true,
-        username: 'Anónimo_' + anonymousId.substring(5, 10)
+        username: 'Anónimo_' + anonymousId.substring(5, 10),
+        role: 'estudiante', // Rol por defecto para usuarios anónimos
+        isAdmin: false
     };
     return next();
 };
@@ -50,20 +52,41 @@ router.get('/', async (req, res) => {
         let postsRef = collection(db, 'posts');
         let q;
         
+        // Primero, obtener los posts fijados (solo para la primera página)
+        let pinnedPosts = [];
+        if (!cursor) {
+            const pinnedQuery = query(
+                postsRef,
+                where('isPinned', '==', true),
+                orderBy('createdAt', 'desc')
+            );
+            const pinnedSnapshot = await getDocs(pinnedQuery);
+            pinnedSnapshot.forEach(doc => {
+                pinnedPosts.push({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt ? new Date(doc.data().createdAt.seconds * 1000).toLocaleString() : 'Fecha desconocida'
+                });
+            });
+        }
+        
+        // Luego, obtener los posts no fijados con paginación
         if (cursor) {
             // Obtener el documento de referencia para startAfter
             const cursorDocRef = doc(db, 'posts', cursor);
             const cursorDocSnapshot = await getDoc(cursorDocRef);
             
             q = query(
-                postsRef, 
+                postsRef,
+                where('isPinned', '==', false),
                 orderBy('createdAt', 'desc'), 
                 startAfter(cursorDocSnapshot),
                 limit(postsPerPage)
             );
         } else {
             q = query(
-                postsRef, 
+                postsRef,
+                where('isPinned', '==', false),
                 orderBy('createdAt', 'desc'), 
                 limit(postsPerPage)
             );
@@ -73,6 +96,13 @@ router.get('/', async (req, res) => {
         
         // Procesar los resultados
         const posts = [];
+        
+        // Primero añadir los posts fijados (solo en la primera página)
+        if (pinnedPosts.length > 0) {
+            posts.push(...pinnedPosts);
+        }
+        
+        // Luego añadir los posts regulares
         querySnapshot.forEach(doc => {
             posts.push({
                 id: doc.id,
@@ -145,6 +175,8 @@ router.post('/new', allowAnyUser, upload.single('image'), async (req, res) => {
             content,
             authorId: req.session.user.uid,
             authorName: req.session.user.username || 'Anónimo',
+            authorRole: req.session.user.role || 'estudiante',
+            isPinned: false, // Por defecto, los posts no están fijados
             createdAt: new Date(),
             updatedAt: new Date(),
             likes: 0,
@@ -395,6 +427,54 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error al eliminar el post'
+        });
+    }
+});
+
+// Fijar/desfijar un post (solo para administradores)
+router.post('/:id/pin', isAuthenticated, async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const userId = req.session.user.uid;
+        
+        // Verificar si el usuario es administrador
+        if (!req.session.user.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: 'Solo los administradores pueden fijar posts'
+            });
+        }
+        
+        // Obtener el post
+        const postRef = doc(db, 'posts', postId);
+        const postSnap = await getDoc(postRef);
+        
+        if (!postSnap.exists()) {
+            return res.status(404).json({
+                success: false,
+                message: 'Post no encontrado'
+            });
+        }
+        
+        const postData = postSnap.data();
+        const isPinned = !postData.isPinned; // Alternar estado
+        
+        // Actualizar el post
+        await updateDoc(postRef, {
+            isPinned: isPinned,
+            updatedAt: new Date()
+        });
+        
+        res.json({
+            success: true,
+            isPinned: isPinned,
+            message: isPinned ? 'Post fijado correctamente' : 'Post desfijado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al fijar/desfijar post:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al fijar/desfijar el post'
         });
     }
 });

@@ -24,6 +24,16 @@
                         <p class="card-text text-muted mb-2">
                             <small>
                                 <i class="fas fa-user me-1"></i> <%= post.authorName || 'Anónimo' %> 
+                                <% if (post.authorRole) { %>
+                                    <span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %> ms-1">
+                                        <%= post.authorRole %>
+                                    </span>
+                                <% } %>
+                                <% if (post.isPinned) { %>
+                                    <span class="badge bg-primary ms-1" title="Post fijado">
+                                        <i class="fas fa-thumbtack me-1"></i>Fijado
+                                    </span>
+                                <% } %>
                                 <i class="far fa-clock ms-2 me-1"></i> <%= post.createdAt %>
                             </small>
                         </p>
