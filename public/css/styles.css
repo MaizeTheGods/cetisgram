@@ -9,7 +9,7 @@
   --accent-color: #1876F2;
   --success-color: #42B72A;
   --danger-color: #E41E3F;
-  --warning-color: #F7B928;
+  --warning-color: #f72828;
   --info-color: #3498db;
   --light-color: #F0F2F5;
   --dark-color: #2C3E50;
@@ -178,4 +178,62 @@ footer {
 /* Footer personalizado */
 .footer a:hover {
   text-decoration: underline;
+}
+
+/* Estilos para el modal de reglas */
+#rulesModal .modal-content {
+  background-color: #fff;
+  color: #212529;
+  border: 2px solid var(--danger-color);
+  border-radius: 10px;
+}
+
+#rulesModal .modal-header {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  color: var(--danger-color);
+  font-weight: bold;
+}
+
+#rulesModal .modal-body {
+  background-color: #fff;
+  padding: 20px;
+}
+
+#rulesModal .rules-list {
+  padding-left: 20px;
+}
+
+#rulesModal .rules-list li {
+  margin-bottom: 10px;
+  position: relative;
+  padding-left: 15px;
+}
+
+#rulesModal .rules-list li::before {
+  content: "•";
+  color: var(--danger-color);
+  font-weight: bold;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+}
+
+#rulesModal .text-underline {
+  text-decoration: underline;
+  text-decoration-color: var(--danger-color);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  color: var(--danger-color);
+  font-weight: bold;
+}
+
+#rulesModal .modal-footer {
+  background-color: #f8f9fa;
+  border-top: 2px solid #dee2e6;
+}
+
+#countdown {
+  font-weight: bold;
+  color: var(--danger-color);
 }
