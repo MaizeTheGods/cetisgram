@@ -39,24 +39,30 @@ router.post('/new', async (req, res) => {
         
         console.log('Sesión actual:', req.session);
         
-        // Verificar que el post exista
+        console.log('🔍 Verificando existencia del post ID:', postId);
         const postRef = doc(db, 'posts', postId);
         const postSnap = await getDoc(postRef);
         
         if (!postSnap.exists()) {
+            console.error('❌ Post no encontrado con ID:', postId);
             return res.status(404).json({ 
                 success: false, 
                 message: 'Post no encontrado' 
             });
         }
+        
+        console.log('✅ Post encontrado:', postSnap.data().title);
 
         // Datos para el comentario
         let commentData = {
-            postId,
-            content,
+            postId: postId, // Asegurarse de que postId sea string
+            content: content.trim(),
             createdAt: new Date(),
-            likes: 0
+            likes: 0,
+            edited: false
         };
+        
+        console.log('📝 Datos del comentario a guardar:', commentData);
         
         // Si el usuario está autenticado, agregar su información
         if (req.session.user) {
@@ -81,13 +87,18 @@ router.post('/new', async (req, res) => {
         
         try {
             // Guardar el comentario en Firestore
+            console.log('💾 Guardando comentario en Firestore...');
             const commentRef = await addDoc(collection(db, 'comments'), commentData);
+            console.log('✅ Comentario guardado con ID:', commentRef.id);
             
             // Actualizar el contador de comentarios en el post
-            const postRef = doc(db, 'posts', postId);
-            await updateDoc(postRef, {
-                commentsCount: increment(1)
+            console.log('🔄 Actualizando contador de comentarios...');
+            const postUpdateRef = doc(db, 'posts', postId);
+            await updateDoc(postUpdateRef, {
+                commentsCount: increment(1),
+                updatedAt: new Date()
             });
+            console.log('✅ Contador de comentarios actualizado');
             
             // Formatear la fecha para mostrarla
             const formattedDate = commentData.createdAt.toLocaleString('es-MX', {

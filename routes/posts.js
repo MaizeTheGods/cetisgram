@@ -352,7 +352,7 @@ router.get('/:id', async (req, res) => {
         }
         
         // 5. Obtener comentarios
-        console.log('💬 Obteniendo comentarios...');
+        console.log('💬 Obteniendo comentarios para el post ID:', postId);
         const commentsRef = collection(db, 'comments');
         const commentsQuery = query(
             commentsRef,
@@ -362,8 +362,15 @@ router.get('/:id', async (req, res) => {
         
         const comments = [];
         try {
+            console.log('🔍 Ejecutando consulta de comentarios...');
             const commentsSnapshot = await getDocs(commentsQuery);
             console.log(`📝 Se encontraron ${commentsSnapshot.size} comentarios`);
+            
+            if (commentsSnapshot.empty) {
+                console.log('ℹ️ No se encontraron comentarios para este post');
+            } else {
+                console.log('📋 Primer comentario encontrado:', commentsSnapshot.docs[0].data());
+            }
             
             // Procesar comentarios en paralelo
             const commentPromises = commentsSnapshot.docs.map(async (commentDoc) => {
@@ -376,8 +383,12 @@ router.get('/:id', async (req, res) => {
                 };
                 
                 // Obtener foto de perfil del autor del comentario
+                console.log(`   Procesando comentario ID: ${commentDoc.id}`);
+                console.log(`   Datos del comentario:`, commentData);
+                
                 if (commentData.authorId) {
                     try {
+                        console.log(`   Buscando datos del usuario: ${commentData.authorId}`);
                         const userRef = doc(db, 'users', commentData.authorId);
                         const userDoc = await getDoc(userRef);
                         
@@ -385,7 +396,9 @@ router.get('/:id', async (req, res) => {
                             const userData = userDoc.data();
                             commentData.authorPhotoURL = userData.photoURL || null;
                             commentData.authorName = userData.displayName || userData.username || 'Usuario';
+                            console.log(`   Datos del usuario encontrados: ${commentData.authorName}`);
                         } else {
+                            console.log(`   Usuario ${commentData.authorId} no encontrado`);
                             commentData.authorName = 'Usuario eliminado';
                             commentData.authorPhotoURL = null;
                         }
@@ -395,6 +408,7 @@ router.get('/:id', async (req, res) => {
                         commentData.authorPhotoURL = null;
                     }
                 } else {
+                    console.log('   Comentario anónimo');
                     commentData.authorName = 'Anónimo';
                     commentData.authorPhotoURL = null;
                 }
