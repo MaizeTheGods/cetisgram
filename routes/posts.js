@@ -263,6 +263,12 @@ router.post('/new', allowAnyUser, upload.single('image'), async (req, res) => {
         res.render('posts/new', {
             title: 'Crear nuevo post',
             error: 'Error al crear el post: ' + error.message,
+            user: req.session.user || null
+        });
+    }
+});
+
+// Ver un post específico
 router.get('/:id', async (req, res) => {
     try {
         const postId = req.params.id;
@@ -427,7 +433,8 @@ router.get('/:id', async (req, res) => {
         res.status(500).render('error', {
             title: 'Error',
             message: errorMessage,
-            error: process.env.NODE_ENV === 'development' ? error : {}
+            error: process.env.NODE_ENV === 'development' ? error : {},
+            user: req.session.user || null
         });
     }
 });
