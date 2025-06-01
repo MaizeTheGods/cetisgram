@@ -1,0 +1,161 @@
+<%- include('partials/header') %>
+
+<div class="container py-5">
+    <!-- Profile Header -->
+    <div class="row mb-5">
+        <div class="col-md-4 text-center">
+            <div class="mb-3">
+                <% if (profileUser.photoURL) { %>
+                    <img src="<%= profileUser.photoURL %>" class="rounded-circle" width="150" height="150" alt="<%= profileUser.username %>" style="object-fit: cover;">
+                <% } else { %>
+                    <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white" style="width: 150px; height: 150px; font-size: 60px; margin: 0 auto;">
+                        <%= profileUser.username.charAt(0).toUpperCase() %>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="d-flex align-items-center mb-3">
+                <h2 class="mb-0 me-3"><%= profileUser.username %></h2>
+                <% if (!isOwnProfile && user) { %>
+                    <button id="followButton" class="btn <%= isFollowing ? 'btn-outline-secondary' : 'btn-primary' %> ms-3" 
+                            data-user-id="<%= profileUser.id %>">
+                        <%= isFollowing ? 'Siguiendo' : 'Seguir' %>
+                    </button>
+                <% } %>
+                <% if (isOwnProfile) { %>
+                    <a href="/auth/edit-profile" class="btn btn-outline-secondary ms-3">Editar perfil</a>
+                <% } %>
+            </div>
+            
+            <div class="d-flex mb-4">
+                <div class="me-4">
+                    <strong><%= profileUser.postsCount || 0 %></strong> publicaciones
+                </div>
+                <div class="me-4">
+                    <a href="#followers" class="text-decoration-none text-dark">
+                        <strong id="followersCount"><%= profileUser.followersCount || 0 %></strong> seguidores
+                    </a>
+                </div>
+                <div>
+                    <a href="#following" class="text-decoration-none text-dark">
+                        <strong id="followingCount"><%= profileUser.followingCount || 0 %></strong> siguiendo
+                    </a>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <h5><%= profileUser.fullName || 'Usuario de Cetisgram' %></h5>
+                <% if (profileUser.bio) { %>
+                    <p class="mb-0"><%= profileUser.bio %></p>
+                <% } %>
+            </div>
+            
+            <div class="d-flex">
+                <div class="me-4">
+                    <i class="fas fa-heart text-danger"></i>
+                    <span><%= profileUser.totalLikes || 0 %> Me gusta recibidos</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="posts-tab" data-bs-toggle="tab" data-bs-target="#posts" type="button" role="tab">
+                <i class="fas fa-th me-1"></i> Publicaciones
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="profileTabsContent">
+        <!-- Posts Tab -->
+        <div class="tab-pane fade show active" id="posts" role="tabpanel">
+            <% if (posts.length > 0) { %>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    <% posts.forEach(post => { %>
+                        <div class="col">
+                            <div class="card h-100">
+                                <% if (post.imageUrl) { %>
+                                    <img src="<%= post.imageUrl %>" class="card-img-top" alt="<%= post.title %>" style="height: 200px; object-fit: cover;">
+                                <% } %>
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <a href="/posts/<%= post.id %>" class="text-decoration-none"><%= post.title %></a>
+                                    </h5>
+                                    <p class="card-text"><%= post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content %></p>
+                                </div>
+                                <div class="card-footer bg-transparent border-top-0">
+                                    <small class="text-muted">
+                                        <i class="far fa-heart me-1"></i> <%= post.likesCount || 0 %>
+                                        <i class="far fa-comment ms-3 me-1"></i> <%= post.commentsCount || 0 %>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="text-center py-5">
+                    <i class="fas fa-camera fa-3x mb-3 text-muted"></i>
+                    <h4>No hay publicaciones aún</h4>
+                    <% if (isOwnProfile) { %>
+                        <p>Comparte tu primer publicación <a href="/posts/new">aquí</a>.</p>
+                    <% } else { %>
+                        <p>Este usuario aún no ha compartido ninguna publicación.</p>
+                    <% } %>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const followButton = document.getElementById('followButton');
+    
+    if (followButton) {
+        followButton.addEventListener('click', async function() {
+            const userId = this.dataset.userId;
+            const isFollowing = this.textContent.trim() === 'Siguiendo';
+            
+            try {
+                const response = await fetch(`/posts/user/${userId}/follow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const followersCount = document.getElementById('followersCount');
+                    const currentCount = parseInt(followersCount.textContent);
+                    
+                    if (result.isFollowing) {
+                        this.textContent = 'Siguiendo';
+                        this.classList.remove('btn-primary');
+                        this.classList.add('btn-outline-secondary');
+                        followersCount.textContent = currentCount + 1;
+                    } else {
+                        this.textContent = 'Seguir';
+                        this.classList.remove('btn-outline-secondary');
+                        this.classList.add('btn-primary');
+                        followersCount.textContent = Math.max(0, currentCount - 1);
+                    }
+                } else {
+                    alert(result.message || 'Error al procesar la solicitud');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al procesar la solicitud');
+            }
+        });
+    }
+});
+</script>
+
+<%- include('partials/footer') %>

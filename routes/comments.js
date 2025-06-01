@@ -18,11 +18,19 @@ const isAuthenticated = (req, res, next) => {
 router.post('/new', async (req, res) => {
     try {
         console.log('Recibiendo solicitud de comentario:', req.body);
-        const { postId, content } = req.body;
+        const { postId, content, _csrf } = req.body;
+        
+        // Verificar CSRF token
+        if (!_csrf || _csrf !== req.csrfToken()) {
+            console.error('Error de CSRF token');
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Token CSRF inválido' 
+            });
+        }
         
         if (!postId || !content) {
             console.error('Faltan datos:', { postId, content });
-            // Siempre devolver JSON ya que estamos usando AJAX
             return res.status(400).json({ 
                 success: false, 
                 message: 'El ID del post y contenido son obligatorios' 
@@ -46,7 +54,8 @@ router.post('/new', async (req, res) => {
         let commentData = {
             postId,
             content,
-            createdAt: new Date()
+            createdAt: new Date(),
+            likes: 0
         };
         
         // Si el usuario está autenticado, agregar su información
@@ -54,7 +63,8 @@ router.post('/new', async (req, res) => {
             commentData = {
                 ...commentData,
                 authorId: req.session.user.uid,
-                authorName: req.session.user.username,
+                authorName: req.session.user.username || 'Usuario',
+                authorPhotoURL: req.session.user.photoURL || null,
                 isAnonymous: req.session.user.isAnonymous || false
             };
         } else {
@@ -64,22 +74,45 @@ router.post('/new', async (req, res) => {
                 ...commentData,
                 authorId: anonymousId,
                 authorName: 'Anónimo_' + anonymousId.substring(5, 10),
-                isAnonymous: true
+                isAnonymous: true,
+                authorPhotoURL: null
             };
         }
         
-        // Guardar el comentario en Firestore
-        const commentRef = await addDoc(collection(db, 'comments'), commentData);
-        
-        // Siempre devolver JSON ya que estamos usando AJAX
-        res.json({ 
-            success: true, 
-            comment: {
-                id: commentRef.id,
-                ...commentData,
-                createdAt: commentData.createdAt.toLocaleString()
-            }
-        });
+        try {
+            // Guardar el comentario en Firestore
+            const commentRef = await addDoc(collection(db, 'comments'), commentData);
+            
+            // Actualizar el contador de comentarios en el post
+            const postRef = doc(db, 'posts', postId);
+            await updateDoc(postRef, {
+                commentsCount: increment(1)
+            });
+            
+            // Formatear la fecha para mostrarla
+            const formattedDate = commentData.createdAt.toLocaleString('es-MX', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Devolver respuesta exitosa
+            res.json({ 
+                success: true, 
+                comment: {
+                    id: commentRef.id,
+                    ...commentData,
+                    createdAt: formattedDate,
+                    edited: false
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error al guardar el comentario:', error);
+            throw new Error('Error al guardar el comentario en la base de datos');
+        }
     } catch (error) {
         console.error('Error al crear comentario:', error);
         

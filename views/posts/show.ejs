@@ -15,11 +15,15 @@
         <div class="d-flex justify-content-between text-muted mb-4">
             <div class="d-flex align-items-center">
                 <% if (post.authorPhotoURL) { %>
-                    <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="32" height="32" alt="<%= post.authorName %>" style="object-fit: cover;">
+                    <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
+                        <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="32" height="32" alt="<%= post.authorName %>" style="object-fit: cover;">
+                    </a>
                 <% } else { %>
-                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                        <span class="text-white" style="font-size: 1rem;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
-                    </div>
+                    <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                            <span class="text-white" style="font-size: 1rem;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
+                        </div>
+                    </a>
                 <% } %>
                 <div>
                     <span><%= post.authorName || 'Anónimo' %></span>
@@ -128,18 +132,21 @@
         <% if (locals.user || true) { %>
             <!-- Formulario para añadir comentarios con AJAX -->
             <form id="commentForm" class="mb-4">
+                <input type="hidden" name="_csrf" value="<%= locals._csrf %>">
                 <input type="hidden" name="postId" id="postId" value="<%= post.id %>">
                 <div class="mb-3">
-                    <label for="content" class="form-label">Añadir un comentario:</label>
+                    <label for="commentContent" class="form-label">Añadir un comentario:</label>
                     <textarea class="form-control" id="commentContent" name="content" rows="3" required></textarea>
                 </div>
-                <div id="commentError" class="alert alert-danger" style="display: none;"></div>
+                <div id="commentError" class="alert alert-danger mb-3" style="display: none;"></div>
                 <button type="submit" id="submitCommentBtn" class="btn btn-primary">
                     <i class="far fa-paper-plane"></i> <span id="submitBtnText">Publicar comentario</span>
-                    <span id="submitSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                    <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display: none;"></span>
                 </button>
                 <% if (!locals.user) { %>
-                    <small class="text-muted ms-2">Comentarás como anónimo. <a href="/auth/login">Inicia sesión</a> para usar tu nombre.</small>
+                    <div class="mt-2">
+                        <small class="text-muted">Comentarás como anónimo. <a href="/auth/login">Inicia sesión</a> para usar tu nombre.</small>
+                    </div>
                 <% } %>
             </form>
         <% } else { %>
@@ -156,11 +163,15 @@
                         <div class="d-flex justify-content-between">
                             <div class="d-flex align-items-center">
                                 <% if (comment.authorPhotoURL) { %>
-                                    <img src="<%= comment.authorPhotoURL %>" class="rounded-circle me-2" width="28" height="28" alt="<%= comment.authorName %>" style="object-fit: cover;">
+                                    <a href="/posts/user/<%= comment.authorId %>" class="text-decoration-none">
+                                        <img src="<%= comment.authorPhotoURL %>" class="rounded-circle me-2" width="48" height="48" alt="<%= comment.authorName %>" style="object-fit: cover;">
+                                    </a>
                                 <% } else { %>
-                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px;">
-                                        <span class="text-white" style="font-size: 0.8rem;"><%= (comment.authorName || 'A').charAt(0).toUpperCase() %></span>
-                                    </div>
+                                    <a href="/posts/user/<%= comment.authorId %>" class="text-decoration-none">
+                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 48px; height: 48px;">
+                                            <span class="text-white" style="font-size: 1.2rem;"><%= (comment.authorName || 'A').charAt(0).toUpperCase() %></span>
+                                        </div>
+                                    </a>
                                 <% } %>
                                 <h6 class="mb-0">
                                     <%= comment.authorName || 'Anónimo' %>
@@ -203,6 +214,27 @@
 </div>
 
 <!-- Script para el manejo de likes y eliminación de comentarios -->
+<style>
+    @keyframes highlight {
+        0% { background-color: rgba(13, 110, 253, 0.15); }
+        100% { background-color: transparent; }
+    }
+    .comment {
+        transition: background-color 0.3s ease;
+    }
+    .comment-actions {
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+    }
+    .comment:hover .comment-actions {
+        opacity: 1;
+    }
+    .comment-content {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Manejo del formulario de comentarios con AJAX
@@ -213,10 +245,11 @@
                 
                 // Obtener los valores del formulario
                 const postId = document.getElementById('postId').value;
-                const content = document.getElementById('commentContent').value;
+                const content = document.getElementById('commentContent').value.trim();
+                const csrfToken = document.querySelector('input[name="_csrf"]').value;
                 
                 // Validar que haya contenido
-                if (!content.trim()) {
+                if (!content) {
                     showCommentError('El comentario no puede estar vacío');
                     return;
                 }
@@ -228,15 +261,21 @@
                     const response = await fetch('/comments/new', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'CSRF-Token': csrfToken
                         },
                         body: JSON.stringify({
                             postId,
-                            content
+                            content,
+                            _csrf: csrfToken
                         })
                     });
                     
                     const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Error al publicar el comentario');
+                    }
                     
                     if (data.success) {
                         // Limpiar formulario
@@ -248,12 +287,19 @@
                         
                         // Actualizar contador
                         updateCommentCount(1);
+                        
+                        // Desplazarse al nuevo comentario
+                        const newComment = document.getElementById(`comment-${data.comment.id}`);
+                        if (newComment) {
+                            newComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            newComment.style.animation = 'highlight 2s';
+                        }
                     } else {
-                        showCommentError(data.message || 'Error al publicar el comentario');
+                        throw new Error(data.message || 'Error al publicar el comentario');
                     }
                 } catch (error) {
                     console.error('Error al enviar comentario:', error);
-                    showCommentError('Hubo un error al publicar el comentario. Inténtalo de nuevo.');
+                    showCommentError(error.message || 'Hubo un error al publicar el comentario. Inténtalo de nuevo.');
                 } finally {
                     toggleCommentLoading(false);
                 }
@@ -301,33 +347,48 @@
             const isAdmin = '<%= locals.user ? locals.user.isAdmin : "false" %>' === 'true';
             const showActions = currentUserId === comment.authorId || isAdmin;
             
+            // Crear elemento de perfil
+            const profilePicture = comment.authorPhotoURL ? 
+                `<img src="${comment.authorPhotoURL}" class="rounded-circle me-2" width="48" height="48" alt="${comment.authorName}" style="object-fit: cover;">` : 
+                `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 48px; height: 48px;">
+                    <span class="text-white" style="font-size: 1.2rem;">${(comment.authorName || 'A').charAt(0).toUpperCase()}</span>
+                </div>`;
+            
             // HTML del comentario
             commentElement.innerHTML = `
-                <div class="d-flex justify-content-between">
-                    <h6 class="mb-1">
-                        <i class="fas fa-user-circle me-1"></i>
-                        ${comment.authorName || 'Anónimo'}
-                        ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
-                    </h6>
-                    <small class="text-muted">
-                        <i class="far fa-clock me-1"></i> ${comment.createdAt}
-                    </small>
+                <div class="d-flex">
+                    <a href="/posts/user/${comment.authorId}" class="text-decoration-none">
+                        ${profilePicture}
+                    </a>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h6 class="mb-0">
+                                <a href="/posts/user/${comment.authorId}" class="text-decoration-none text-dark fw-bold">
+                                    ${comment.authorName || 'Anónimo'}
+                                </a>
+                                ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
+                            </h6>
+                            <small class="text-muted">
+                                <i class="far fa-clock me-1"></i> ${comment.createdAt}
+                            </small>
+                        </div>
+                        
+                        <div class="comment-content my-2">
+                            ${comment.content.replace(/\n/g, '<br>')}
+                        </div>
+                        
+                        ${showActions ? `
+                        <div class="comment-actions mt-2">
+                            <button class="btn btn-sm btn-link text-primary p-0 me-2 edit-comment-btn" data-comment-id="${comment.id}">
+                                <i class="fas fa-edit me-1"></i>Editar
+                            </button>
+                            <button class="btn btn-sm btn-link text-danger p-0 delete-comment-btn" data-comment-id="${comment.id}">
+                                <i class="fas fa-trash me-1"></i>Eliminar
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
                 </div>
-                
-                <div class="comment-content my-2">
-                    ${comment.content}
-                </div>
-                
-                ${showActions ? `
-                <div class="comment-actions">
-                    <button class="btn btn-sm btn-link text-primary edit-comment-btn" data-comment-id="${comment.id}">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button class="btn btn-sm btn-link text-danger delete-comment-btn" data-comment-id="${comment.id}">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                </div>
-                ` : ''}
             `;
             
             // Agregar el comentario al principio de la lista

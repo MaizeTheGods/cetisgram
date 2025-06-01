@@ -3,6 +3,7 @@ const router = express.Router();
 const path = require('path');
 const { db } = require('../config/firebase');
 const { cloudinary, upload } = require('../config/cloudinary');
+const { getAuth } = require('firebase/auth');
 const { 
     collection, 
     doc, 
@@ -624,6 +625,140 @@ router.post('/:id/pin', isAuthenticated, async (req, res) => {
             success: false,
             message: 'Error al fijar/desfijar el post'
         });
+    }
+});
+
+// User profile route
+router.get('/user/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const currentUserId = req.session.user?.uid;
+
+        // Get user data
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+            return res.status(404).render('error', {
+                title: 'Usuario no encontrado',
+                message: 'El usuario que buscas no existe.'
+            });
+        }
+
+        const userData = userSnap.data();
+        
+        // Get user's posts
+        const postsQuery = query(
+            collection(db, 'posts'),
+            where('authorId', '==', userId),
+            orderBy('createdAt', 'desc')
+        );
+        const postsSnapshot = await getDocs(postsQuery);
+        const posts = [];
+        
+        for (const doc of postsSnapshot.docs) {
+            const postData = doc.data();
+            posts.push({
+                id: doc.id,
+                ...postData,
+                createdAt: postData.createdAt?.toDate ? postData.createdAt.toDate().toLocaleString() : 'Fecha desconocida'
+            });
+        }
+
+        // Check if current user is following this profile
+        let isFollowing = false;
+        if (currentUserId && currentUserId !== userId) {
+            const followRef = doc(db, 'users', currentUserId, 'following', userId);
+            const followSnap = await getDoc(followRef);
+            isFollowing = followSnap.exists();
+        }
+
+        // Get followers and following count
+        const followersSnap = await getDocs(collection(db, 'users', userId, 'followers'));
+        const followingSnap = await getDocs(collection(db, 'users', userId, 'following'));
+        
+        // Calculate total likes from posts
+        let totalLikes = 0;
+        posts.forEach(post => {
+            totalLikes += post.likesCount || 0;
+        });
+
+        res.render('profile', {
+            title: `Perfil de ${userData.username}`,
+            profileUser: {
+                ...userData,
+                id: userId,
+                followersCount: followersSnap.size,
+                followingCount: followingSnap.size,
+                postsCount: posts.length,
+                totalLikes: totalLikes
+            },
+            posts: posts,
+            isFollowing: isFollowing,
+            isOwnProfile: currentUserId === userId,
+            user: req.session.user
+        });
+
+    } catch (error) {
+        console.error('Error al cargar el perfil:', error);
+        res.status(500).render('error', {
+            title: 'Error',
+            message: 'Ocurrió un error al cargar el perfil.'
+        });
+    }
+});
+
+// Follow/Unfollow user
+router.post('/user/:userId/follow', isAuthenticated, async (req, res) => {
+    try {
+        const currentUserId = req.session.user.uid;
+        const targetUserId = req.params.userId;
+        
+        if (currentUserId === targetUserId) {
+            return res.status(400).json({ success: false, message: 'No puedes seguirte a ti mismo' });
+        }
+
+        const currentUserRef = doc(db, 'users', currentUserId);
+        const targetUserRef = doc(db, 'users', targetUserId);
+        
+        // Check if already following
+        const followRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+        const followSnap = await getDoc(followRef);
+        
+        if (followSnap.exists()) {
+            // Unfollow
+            await deleteDoc(followRef);
+            await updateDoc(currentUserRef, {
+                followingCount: increment(-1)
+            });
+            await updateDoc(targetUserRef, {
+                followersCount: increment(-1)
+            });
+            return res.json({ success: true, isFollowing: false });
+        } else {
+            // Follow
+            await setDoc(followRef, {
+                followedAt: new Date()
+            });
+            
+            // Create reverse relationship for easy querying
+            const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+            await setDoc(followerRef, {
+                followedAt: new Date()
+            });
+            
+            await updateDoc(currentUserRef, {
+                followingCount: increment(1)
+            });
+            await updateDoc(targetUserRef, {
+                followersCount: increment(1)
+            });
+            
+            return res.json({ success: true, isFollowing: true });
+        }
+    } catch (error) {
+        console.error('Error al seguir/dejar de seguir:', error);
+        res.status(500).json({ success: false, message: 'Error al procesar la solicitud' });
     }
 });
 

@@ -47,11 +47,15 @@
                                     <small class="text-muted d-flex align-items-center">
                                         <% console.log('Post author info:', post.authorId, post.authorName, post.authorPhotoURL); %>
                                         <% if (post.authorPhotoURL) { %>
-                                            <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-1" width="24" height="24" alt="<%= post.authorName %>" style="object-fit: cover;">
+                                            <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
+                                                <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-1" width="24" height="24" alt="<%= post.authorName %>" style="object-fit: cover;">
+                                            </a>
                                         <% } else { %>
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-1" style="width: 24px; height: 24px;">
-                                                <span class="text-white" style="font-size: 0.8rem;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
-                                            </div>
+                                            <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
+                                                <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white me-1" style="width: 24px; height: 24px; font-size: 12px;">
+                                                    <%= post.authorName ? post.authorName.charAt(0).toUpperCase() : '?' %>
+                                                </span>
+                                            </a>
                                         <% } %>
                                         <%= post.authorName || 'Anónimo' %>
                                     </small>
