@@ -4,9 +4,19 @@ const path = require('path');
 const { db } = require('../config/firebase');
 const { cloudinary, upload } = require('../config/cloudinary');
 const { 
-    collection, doc, addDoc, getDoc, getDocs, 
-    updateDoc, deleteDoc, query, where, orderBy, 
-    limit, increment, startAfter
+    collection, 
+    doc, 
+    addDoc, 
+    getDoc, 
+    getDocs, 
+    updateDoc, 
+    deleteDoc, 
+    query, 
+    where, 
+    orderBy, 
+    limit, 
+    startAfter, 
+    increment 
 } = require('firebase/firestore');
 
 // Middleware para verificar autenticación
