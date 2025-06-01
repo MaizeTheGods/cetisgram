@@ -683,23 +683,32 @@ router.get('/user/:userId', allowAnyUser, async (req, res) => {
             createdAt: userData.createdAt || new Date()
         };
         
-        // Get user's posts
+        // Obtener posts del usuario - Consulta temporal sin ordenar hasta que se cree el índice
         const postsQuery = query(
             collection(db, 'posts'),
-            where('authorId', '==', userId),
-            orderBy('createdAt', 'desc')
+            where('authorId', '==', userId)
+            // Se eliminó temporalmente el orderBy para evitar el error de índice
+            // orderBy('createdAt', 'desc')
         );
         const postsSnapshot = await getDocs(postsQuery);
-        const posts = [];
-        
-        for (const doc of postsSnapshot.docs) {
+        const userPosts = [];
+        postsSnapshot.forEach(doc => {
             const postData = doc.data();
-            posts.push({
+            userPosts.push({
                 id: doc.id,
                 ...postData,
-                createdAt: postData.createdAt?.toDate ? postData.createdAt.toDate().toLocaleString() : 'Fecha desconocida'
+                createdAt: postData.createdAt?.toDate().toLocaleString() || 'Fecha desconocida',
+                likes: postData.likes || 0,
+                commentsCount: postData.commentsCount || 0
             });
-        }
+        });
+        
+        // Ordenar manualmente los posts por fecha (más reciente primero)
+        userPosts.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA; // Orden descendente (más reciente primero)
+        });
 
         // Check if current user is following this profile
         let isFollowing = false;
