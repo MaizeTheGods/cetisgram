@@ -25,38 +25,71 @@ const db = getFirestore(firebaseApp);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'cetisgram-secret',
+
+// Configuración de sesión mejorada
+const sessionConfig = {
+    secret: process.env.SESSION_SECRET || 'cetisgram-secret-key-12345',
     resave: false,
     saveUninitialized: true,
     cookie: { 
-        // En Render.com, necesitamos permitir cookies sin HTTPS para desarrollo
-        secure: false, 
-        maxAge: 3600000, // 1 hora
+        secure: process.env.NODE_ENV === 'production', // Usar solo en producción con HTTPS
+        maxAge: 24 * 60 * 60 * 1000, // 24 horas
         httpOnly: true,
-        sameSite: 'lax'
-    }
-}));
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        domain: process.env.NODE_ENV === 'production' ? '.cetisgram.onrender.com' : undefined
+    },
+    // Usar store en producción (puedes implementar connect-redis para mejor escalabilidad)
+    store: process.env.NODE_ENV === 'production' ? new (require('memorystore')(session))({ 
+        checkPeriod: 86400000 // Limpiar entradas expiradas cada 24h
+    }) : null
+};
 
-// Middleware para hacer que el usuario esté disponible en todas las vistas
+// Configurar proxy de confianza si está detrás de un proxy (como en Render.com)
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+    sessionConfig.cookie.secure = true;
+}
+
+app.use(session(sessionConfig));
+
+// Middleware para manejo de usuarios (autenticados y anónimos)
 app.use(async (req, res, next) => {
     try {
-        // Si hay un usuario en sesión, asegurarse de tener la información más reciente
-        if (req.session.user && req.session.user.uid) {
-            const userDoc = await getDoc(doc(db, 'users', req.session.user.uid));
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                req.user = {
-                    ...req.session.user,
-                    photoURL: userData.photoURL || null,
-                    username: userData.username || req.session.user.username,
-                    role: userData.role || req.session.user.role,
-                    isAdmin: (userData.role === 'admin') || req.session.user.isAdmin
-                };
-                // Actualizar la sesión con los datos más recientes
-                req.session.user = req.user;
+        // Si no hay usuario en sesión, crear uno anónimo
+        if (!req.session.user) {
+            const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
+            req.session.user = {
+                uid: anonymousId,
+                isAnonymous: true,
+                username: 'Anónimo_' + anonymousId.substring(5, 10),
+                role: 'estudiante',
+                isAdmin: false
+            };
+            console.log('Nuevo usuario anónimo creado:', req.session.user.uid);
+        }
+
+        // Si es un usuario registrado (no anónimo), actualizar desde la base de datos
+        if (req.session.user && !req.session.user.isAnonymous) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', req.session.user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    req.user = {
+                        ...req.session.user,
+                        photoURL: userData.photoURL || null,
+                        username: userData.username || req.session.user.username,
+                        role: userData.role || req.session.user.role || 'estudiante',
+                        isAdmin: (userData.role === 'admin') || req.session.user.isAdmin || false
+                    };
+                    // Actualizar la sesión con los datos más recientes
+                    req.session.user = req.user;
+                }
+            } catch (dbError) {
+                console.error('Error al obtener datos del usuario:', dbError);
+                // Continuar con los datos de sesión existentes en caso de error
             }
         }
+
         // Hacer que el usuario esté disponible en todas las vistas
         res.locals.user = req.session.user || null;
         next();

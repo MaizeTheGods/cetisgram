@@ -646,23 +646,36 @@ router.post('/:id/pin', isAuthenticated, async (req, res) => {
 router.get('/user/:userId', allowAnyUser, async (req, res) => {
     try {
         const userId = req.params.userId;
-        // Asegurarse de que la sesión esté inicializada
-        if (!req.session.user) {
-            req.session.user = {
-                uid: 'anon_' + Math.random().toString(36).substring(2, 15),
-                isAnonymous: true,
-                username: 'Anónimo',
-                role: 'estudiante',
-                isAdmin: false
-            };
-        }
         const currentUserId = req.session.user.uid;
+        
+        console.log('Solicitando perfil de usuario:', {
+            usuarioSolicitado: userId,
+            usuarioActual: currentUserId,
+            esAnonimo: req.session.user.isAnonymous
+        });
+        
+        // Si el ID de usuario solicitado es 'me', redirigir al perfil del usuario actual
+        if (userId === 'me' && !req.session.user.isAnonymous) {
+            return res.redirect(`/posts/user/${currentUserId}`);
+        } else if (userId === 'me') {
+            return res.redirect('/auth/login');
+        }
 
-        // Get user data
+        // Verificar si el perfil solicitado es de un usuario anónimo
+        if (userId.startsWith('anon_')) {
+            return res.status(404).render('error', {
+                title: 'Perfil no disponible',
+                message: 'Los perfiles anónimos no son visibles.',
+                user: req.session.user
+            });
+        }
+        
+        // Obtener datos del usuario solicitado
         const userRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
+            console.log('Usuario no encontrado en la base de datos:', userId);
             return res.status(404).render('error', {
                 title: 'Usuario no encontrado',
                 message: 'El perfil que buscas no existe o ha sido eliminado.',
@@ -683,32 +696,51 @@ router.get('/user/:userId', allowAnyUser, async (req, res) => {
             createdAt: userData.createdAt || new Date()
         };
         
-        // Obtener posts del usuario - Consulta temporal sin ordenar hasta que se cree el índice
-        const postsQuery = query(
-            collection(db, 'posts'),
-            where('authorId', '==', userId)
-            // Se eliminó temporalmente el orderBy para evitar el error de índice
-            // orderBy('createdAt', 'desc')
-        );
-        const postsSnapshot = await getDocs(postsQuery);
-        const userPosts = [];
-        postsSnapshot.forEach(doc => {
-            const postData = doc.data();
-            userPosts.push({
-                id: doc.id,
-                ...postData,
-                createdAt: postData.createdAt?.toDate().toLocaleString() || 'Fecha desconocida',
-                likes: postData.likes || 0,
-                commentsCount: postData.commentsCount || 0
+        // Obtener posts del usuario con manejo de errores mejorado
+        let userPosts = [];
+        try {
+            const postsQuery = query(
+                collection(db, 'posts'),
+                where('authorId', '==', userId)
+            );
+            
+            const postsSnapshot = await getDocs(postsQuery);
+            console.log(`Se encontraron ${postsSnapshot.size} posts para el usuario ${userId}`);
+            
+            // Procesar posts en paralelo para mejor rendimiento
+            const postPromises = postsSnapshot.docs.map(async (doc) => {
+                const postData = doc.data();
+                return {
+                    id: doc.id,
+                    ...postData,
+                    createdAt: postData.createdAt?.toDate ? postData.createdAt.toDate() : new Date(),
+                    likes: postData.likes || 0,
+                    commentsCount: postData.commentsCount || 0
+                };
             });
-        });
-        
-        // Ordenar manualmente los posts por fecha (más reciente primero)
-        userPosts.sort((a, b) => {
-            const dateA = new Date(a.createdAt);
-            const dateB = new Date(b.createdAt);
-            return dateB - dateA; // Orden descendente (más reciente primero)
-        });
+            
+            userPosts = await Promise.all(postPromises);
+            
+            // Ordenar por fecha (más reciente primero)
+            userPosts.sort((a, b) => b.createdAt - a.createdAt);
+            
+            // Formatear fechas para la vista
+            userPosts = userPosts.map(post => ({
+                ...post,
+                createdAt: post.createdAt.toLocaleString('es-MX', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            }));
+            
+        } catch (postsError) {
+            console.error('Error al cargar los posts del usuario:', postsError);
+            // Continuar con un array vacío si hay un error
+            userPosts = [];
+        }
 
         // Check if current user is following this profile
         let isFollowing = false;

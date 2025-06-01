@@ -6,16 +6,36 @@ const {
     updateDoc, deleteDoc, query, where 
 } = require('firebase/firestore');
 
-// Middleware para verificar autenticación
-const isAuthenticated = (req, res, next) => {
-    if (req.session.user) {
-        return next();
+// Middleware que permite tanto a usuarios autenticados como anónimos
+const allowAnyUser = (req, res, next) => {
+    // Si no hay usuario en sesión, crear uno anónimo
+    if (!req.session.user) {
+        const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
+        req.session.user = {
+            uid: anonymousId,
+            isAnonymous: true,
+            username: 'Anónimo_' + anonymousId.substring(5, 10),
+            role: 'estudiante',
+            isAdmin: false
+        };
+        console.log('Nuevo usuario anónimo creado en middleware de comentarios:', req.session.user.uid);
     }
-    res.redirect('/auth/login');
+    next();
 };
 
-// Agregar un comentario a un post
-router.post('/new', async (req, res) => {
+// Middleware para verificar autenticación (solo usuarios registrados)
+const isAuthenticated = (req, res, next) => {
+    if (req.session.user && !req.session.user.isAnonymous) {
+        return next();
+    }
+    res.status(401).json({ 
+        success: false, 
+        message: 'Debes iniciar sesión para realizar esta acción' 
+    });
+};
+
+// Agregar un comentario a un post (permite usuarios anónimos)
+router.post('/new', allowAnyUser, async (req, res) => {
     try {
         console.log('Recibiendo solicitud de comentario:', req.body);
         const { postId, content, _csrf } = req.body;
@@ -64,26 +84,20 @@ router.post('/new', async (req, res) => {
         
         console.log('📝 Datos del comentario a guardar:', commentData);
         
-        // Si el usuario está autenticado, agregar su información
-        if (req.session.user) {
-            commentData = {
-                ...commentData,
-                authorId: req.session.user.uid,
-                authorName: req.session.user.username || 'Usuario',
-                authorPhotoURL: req.session.user.photoURL || null,
-                isAnonymous: req.session.user.isAnonymous || false
-            };
-        } else {
-            // Comentario anónimo
-            const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
-            commentData = {
-                ...commentData,
-                authorId: anonymousId,
-                authorName: 'Anónimo_' + anonymousId.substring(5, 10),
-                isAnonymous: true,
-                authorPhotoURL: null
-            };
-        }
+        // Usar la información de la sesión (ya sea autenticada o anónima)
+        commentData = {
+            ...commentData,
+            authorId: req.session.user.uid,
+            authorName: req.session.user.username || 'Usuario',
+            authorPhotoURL: req.session.user.photoURL || null,
+            isAnonymous: req.session.user.isAnonymous || false
+        };
+        
+        console.log('Información del autor del comentario:', {
+            authorId: commentData.authorId,
+            authorName: commentData.authorName,
+            isAnonymous: commentData.isAnonymous
+        });
         
         try {
             // Guardar el comentario en Firestore
