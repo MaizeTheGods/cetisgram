@@ -263,111 +263,171 @@ router.post('/new', allowAnyUser, upload.single('image'), async (req, res) => {
         res.render('posts/new', {
             title: 'Crear nuevo post',
             error: 'Error al crear el post: ' + error.message,
-            user: req.session.user
-        });
-    }
-});
-
-// Ver un post específico
 router.get('/:id', async (req, res) => {
     try {
         const postId = req.params.id;
-        console.log('Obteniendo post con ID:', postId);
+        console.log('🔍 Obteniendo post con ID:', postId);
         
+        // 1. Obtener el post
         const postRef = doc(db, 'posts', postId);
+        console.log('📄 Referencia del post creada');
+        
         const postSnap = await getDoc(postRef);
+        console.log('✅ Post obtenido de Firestore');
         
         if (!postSnap.exists()) {
-            console.log('Post no encontrado');
+            console.log('❌ Post no encontrado');
             return res.status(404).render('404', {
                 title: 'Post no encontrado',
                 user: req.session.user || null
             });
         }
         
-        // Incrementar vistas (si falla, continuamos sin incrementar)
+        // 2. Incrementar contador de vistas
         try {
             await updateDoc(postRef, {
                 views: increment(1)
             });
+            console.log('👀 Contador de vistas incrementado');
         } catch (viewError) {
-            console.error('Error al incrementar vistas (continuando):', viewError);
+            console.error('⚠️ Error al incrementar vistas (continuando):', viewError);
         }
         
+        // 3. Preparar datos del post
         const postData = {
             id: postSnap.id,
             ...postSnap.data(),
-            createdAt: postSnap.data().createdAt ? new Date(postSnap.data().createdAt.seconds * 1000).toLocaleString() : 'Fecha desconocida'
+            createdAt: postSnap.data().createdAt 
+                ? new Date(postSnap.data().createdAt.seconds * 1000).toLocaleString() 
+                : 'Fecha desconocida',
+            likes: postSnap.data().likes || 0,
+            views: (postSnap.data().views || 0) + 1
         };
         
-        // Obtener la foto de perfil del autor del post
+        console.log('📝 Datos del post preparados:', {
+            id: postData.id,
+            title: postData.title,
+            authorId: postData.authorId,
+            authorName: postData.authorName
+        });
+        
+        // 4. Obtener foto de perfil del autor del post
         if (postData.authorId) {
             try {
+                console.log('👤 Buscando datos del autor con ID:', postData.authorId);
                 const userRef = doc(db, 'users', postData.authorId);
                 const userDoc = await getDoc(userRef);
+                
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
                     postData.authorPhotoURL = userData.photoURL || null;
-                    console.log(`Foto de perfil del autor: ${postData.authorName} -> ${postData.authorPhotoURL}`);
+                    postData.authorName = userData.displayName || userData.username || 'Usuario';
+                    postData.authorRole = userData.role || 'usuario';
+                    
+                    console.log('✅ Datos del autor obtenidos:', {
+                        name: postData.authorName,
+                        photoURL: postData.authorPhotoURL,
+                        role: postData.authorRole
+                    });
+                } else {
+                    console.warn('⚠️ Usuario no encontrado en la base de datos');
+                    postData.authorName = 'Usuario eliminado';
+                    postData.authorPhotoURL = null;
                 }
             } catch (error) {
-                console.error('Error al obtener foto de perfil del autor:', error);
+                console.error('❌ Error al obtener datos del autor:', error);
+                postData.authorName = 'Error al cargar';
+                postData.authorPhotoURL = null;
             }
+        } else {
+            postData.authorName = 'Anónimo';
+            postData.authorPhotoURL = null;
         }
         
-        // Obtener datos de los comentarios
+        // 5. Obtener comentarios
+        console.log('💬 Obteniendo comentarios...');
         const commentsRef = collection(db, 'comments');
         const commentsQuery = query(
             commentsRef,
             where('postId', '==', postId),
             orderBy('createdAt', 'desc')
         );
-        const commentsSnapshot = await getDocs(commentsQuery);
         
         const comments = [];
-        for (const commentDoc of commentsSnapshot.docs) {
-            const commentData = {
-                id: commentDoc.id,
-                ...commentDoc.data(),
-                createdAt: commentDoc.data().createdAt ? new Date(commentDoc.data().createdAt.seconds * 1000).toLocaleString() : 'Fecha desconocida'
-            };
+        try {
+            const commentsSnapshot = await getDocs(commentsQuery);
+            console.log(`📝 Se encontraron ${commentsSnapshot.size} comentarios`);
             
-            // Obtener foto de perfil del autor del comentario en línea
-            if (commentData.authorId) {
-                try {
-                    const userRef = doc(db, 'users', commentData.authorId);
-                    const userDoc = await getDoc(userRef);
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        commentData.authorPhotoURL = userData.photoURL || null;
-                        console.log(`Foto de perfil para comentario de ${commentData.authorName}: ${commentData.authorPhotoURL}`);
+            // Procesar comentarios en paralelo
+            const commentPromises = commentsSnapshot.docs.map(async (commentDoc) => {
+                const commentData = {
+                    id: commentDoc.id,
+                    ...commentDoc.data(),
+                    createdAt: commentDoc.data().createdAt 
+                        ? new Date(commentDoc.data().createdAt.seconds * 1000).toLocaleString() 
+                        : 'Fecha desconocida'
+                };
+                
+                // Obtener foto de perfil del autor del comentario
+                if (commentData.authorId) {
+                    try {
+                        const userRef = doc(db, 'users', commentData.authorId);
+                        const userDoc = await getDoc(userRef);
+                        
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            commentData.authorPhotoURL = userData.photoURL || null;
+                            commentData.authorName = userData.displayName || userData.username || 'Usuario';
+                        } else {
+                            commentData.authorName = 'Usuario eliminado';
+                            commentData.authorPhotoURL = null;
+                        }
+                    } catch (error) {
+                        console.error(`❌ Error al obtener datos del autor del comentario ${commentDoc.id}:`, error);
+                        commentData.authorName = 'Error al cargar';
+                        commentData.authorPhotoURL = null;
                     }
-                } catch (error) {
-                    console.error(`Error al obtener foto de perfil para comentario ${commentDoc.id}:`, error);
+                } else {
+                    commentData.authorName = 'Anónimo';
+                    commentData.authorPhotoURL = null;
                 }
-            }
-            comments.push(commentData);
+                
+                return commentData;
+            });
+            
+            // Esperar a que todos los comentarios se procesen
+            const processedComments = await Promise.all(commentPromises);
+            comments.push(...processedComments);
+            
+        } catch (error) {
+            console.error('❌ Error al obtener comentarios:', error);
+            // Continuar sin comentarios si hay un error
         }
         
+        // 6. Renderizar la vista con los datos
+        console.log('🎉 Todo listo, renderizando vista...');
         return res.render('posts/show', {
             title: postData.title || 'Ver post',
             post: postData,
             comments,
             user: req.session.user || null
         });
+        
     } catch (error) {
-        console.error('Error al obtener post:', error);
+        console.error('❌ Error crítico al obtener el post:', error);
         
         // Mensaje de error más descriptivo
         let errorMessage = 'Error al cargar el post';
         if (error.code === 'permission-denied') {
-            errorMessage = 'Error de permisos. Por favor, actualiza las reglas de seguridad en Firebase.';
+            errorMessage = 'Error de permisos. Por favor, verifica que estás autenticado y tienes los permisos necesarios.';
+        } else if (error.code === 'not-found') {
+            errorMessage = 'El post solicitado no existe o ha sido eliminado.';
         }
         
         res.status(500).render('error', {
             title: 'Error',
             message: errorMessage,
-            error
+            error: process.env.NODE_ENV === 'development' ? error : {}
         });
     }
 });
