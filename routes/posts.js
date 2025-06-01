@@ -629,10 +629,20 @@ router.post('/:id/pin', isAuthenticated, async (req, res) => {
 });
 
 // User profile route
-router.get('/user/:userId', async (req, res) => {
+router.get('/user/:userId', allowAnyUser, async (req, res) => {
     try {
         const userId = req.params.userId;
-        const currentUserId = req.session.user?.uid;
+        // Asegurarse de que la sesión esté inicializada
+        if (!req.session.user) {
+            req.session.user = {
+                uid: 'anon_' + Math.random().toString(36).substring(2, 15),
+                isAnonymous: true,
+                username: 'Anónimo',
+                role: 'estudiante',
+                isAdmin: false
+            };
+        }
+        const currentUserId = req.session.user.uid;
 
         // Get user data
         const userRef = doc(db, 'users', userId);
@@ -641,11 +651,23 @@ router.get('/user/:userId', async (req, res) => {
         if (!userSnap.exists()) {
             return res.status(404).render('error', {
                 title: 'Usuario no encontrado',
-                message: 'El usuario que buscas no existe.'
+                message: 'El perfil que buscas no existe o ha sido eliminado.',
+                user: req.session.user
             });
         }
 
         const userData = userSnap.data();
+        
+        // Asegurarse de que los datos básicos del usuario existan
+        const safeUserData = {
+            username: userData.username || 'Usuario',
+            fullName: userData.fullName || '',
+            bio: userData.bio || '',
+            photoURL: userData.photoURL || null,
+            role: userData.role || 'estudiante',
+            isAdmin: userData.isAdmin || false,
+            createdAt: userData.createdAt || new Date()
+        };
         
         // Get user's posts
         const postsQuery = query(
@@ -683,21 +705,30 @@ router.get('/user/:userId', async (req, res) => {
             totalLikes += post.likesCount || 0;
         });
 
-        res.render('profile', {
-            title: `Perfil de ${userData.username}`,
-            profileUser: {
-                ...userData,
-                id: userId,
-                followersCount: followersSnap.size,
-                followingCount: followingSnap.size,
-                postsCount: posts.length,
-                totalLikes: totalLikes
-            },
-            posts: posts,
-            isFollowing: isFollowing,
-            isOwnProfile: currentUserId === userId,
-            user: req.session.user
-        });
+        try {
+            res.render('profile', {
+                title: `Perfil de ${safeUserData.username}`,
+                profileUser: {
+                    ...safeUserData,
+                    id: userId,
+                    followersCount: followersSnap.size || 0,
+                    followingCount: followingSnap.size || 0,
+                    postsCount: posts.length || 0,
+                    totalLikes: totalLikes || 0
+                },
+                posts: posts || [],
+                isFollowing: isFollowing,
+                isOwnProfile: currentUserId === userId,
+                user: req.session.user || null
+            });
+        } catch (renderError) {
+            console.error('Error al renderizar el perfil:', renderError);
+            res.status(500).render('error', {
+                title: 'Error',
+                message: 'Ocurrió un error al cargar el perfil',
+                user: req.session.user
+            });
+        }
 
     } catch (error) {
         console.error('Error al cargar el perfil:', error);

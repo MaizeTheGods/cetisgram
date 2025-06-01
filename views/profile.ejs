@@ -6,25 +6,35 @@
         <div class="col-md-4 text-center">
             <div class="mb-3">
                 <% if (profileUser.photoURL) { %>
-                    <img src="<%= profileUser.photoURL %>" class="rounded-circle" width="150" height="150" alt="<%= profileUser.username %>" style="object-fit: cover;">
+                    <img src="<%= profileUser.photoURL %>" 
+                         class="rounded-circle border" 
+                         width="150" 
+                         height="150" 
+                         alt="<%= profileUser.username || 'Usuario' %>" 
+                         style="object-fit: cover; border: 3px solid #f8f9fa;">
                 <% } else { %>
-                    <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white" style="width: 150px; height: 150px; font-size: 60px; margin: 0 auto;">
-                        <%= profileUser.username.charAt(0).toUpperCase() %>
+                    <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white" 
+                         style="width: 150px; height: 150px; font-size: 60px; margin: 0 auto; border: 3px solid #f8f9fa;">
+                        <%= (profileUser.username || 'U').charAt(0).toUpperCase() %>
                     </div>
                 <% } %>
             </div>
         </div>
         <div class="col-md-8">
             <div class="d-flex align-items-center mb-3">
-                <h2 class="mb-0 me-3"><%= profileUser.username %></h2>
-                <% if (!isOwnProfile && user) { %>
-                    <button id="followButton" class="btn <%= isFollowing ? 'btn-outline-secondary' : 'btn-primary' %> ms-3" 
-                            data-user-id="<%= profileUser.id %>">
-                        <%= isFollowing ? 'Siguiendo' : 'Seguir' %>
-                    </button>
-                <% } %>
-                <% if (isOwnProfile) { %>
-                    <a href="/auth/edit-profile" class="btn btn-outline-secondary ms-3">Editar perfil</a>
+                <h2 class="mb-0 me-3"><%= profileUser.username || 'Usuario' %></h2>
+                <% if (user && !user.isAnonymous) { %>
+                    <% if (!isOwnProfile) { %>
+                        <button id="followButton" 
+                                class="btn <%= isFollowing ? 'btn-outline-secondary' : 'btn-primary' %> ms-3" 
+                                data-user-id="<%= profileUser.id %>">
+                            <%= isFollowing ? 'Siguiendo' : 'Seguir' %>
+                        </button>
+                    <% } else { %>
+                        <a href="/auth/edit-profile" class="btn btn-outline-secondary ms-3">
+                            <i class="fas fa-user-edit me-1"></i> Editar perfil
+                        </a>
+                    <% } %>
                 <% } %>
             </div>
             
