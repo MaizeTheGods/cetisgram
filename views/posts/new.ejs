@@ -1,0 +1,114 @@
+<%- include('../partials/header') %>
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+        <li class="breadcrumb-item"><a href="/posts">Posts</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Crear nuevo post</li>
+    </ol>
+</nav>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0 h4">Crear nuevo post</h2>
+    </div>
+    <div class="card-body">
+        <% if (locals.error) { %>
+            <div class="alert alert-danger">
+                <%= locals.error %>
+            </div>
+        <% } %>
+        
+        <form action="/posts/new" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="title" class="form-label">Título <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="title" name="title" required>
+                <div class="form-text">Un título claro y descriptivo para tu post.</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="content" class="form-label">Contenido <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="content" name="content" rows="8" required></textarea>
+                <div class="form-text">Escribe el contenido de tu post. Puedes usar texto plano.</div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="image" class="form-label">Imagen (opcional)</label>
+                <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                <div class="form-text">Puedes subir una imagen JPG, PNG, GIF o WebP (máx. 5MB)</div>
+                <div id="imagePreviewContainer" class="mt-3" style="display: none;">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <p class="mb-2"><strong>Vista previa:</strong></p>
+                            <img id="imagePreview" src="#" alt="Vista previa" class="img-fluid rounded" style="max-height: 300px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="/posts" class="btn btn-outline-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-1"></i> Publicar post
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Script para la vista previa de imágenes -->
+<script>
+    // Ejecutar cuando el DOM está completamente cargado
+    window.onload = function() {
+        // Obtener referencias a los elementos del DOM
+        var imageInput = document.getElementById('image');
+        var imagePreview = document.getElementById('imagePreview');
+        var imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        
+        // Verificar que los elementos existan para evitar errores
+        if (imageInput && imagePreview && imagePreviewContainer) {
+            // Función para manejar la vista previa
+            function handlePreview() {
+                if (imageInput.files && imageInput.files[0]) {
+                    var reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        // Asegurarse de que la carga se completó correctamente
+                        if (e.target && e.target.result) {
+                            imagePreview.src = e.target.result;
+                            imagePreviewContainer.style.display = 'block';
+                        }
+                    };
+                    
+                    // Capturar errores en la lectura del archivo
+                    reader.onerror = function() {
+                        console.error('Error al leer el archivo');
+                        imagePreviewContainer.style.display = 'none';
+                    };
+                    
+                    try {
+                        reader.readAsDataURL(imageInput.files[0]);
+                    } catch(err) {
+                        console.error('Error al procesar la imagen:', err);
+                    }
+                } else {
+                    // No hay archivo seleccionado
+                    imagePreview.src = '#';
+                    imagePreviewContainer.style.display = 'none';
+                }
+            }
+            
+            // Asignar el manejador de eventos
+            imageInput.addEventListener('change', handlePreview, false);
+            
+            // Verificación inicial (por si hay una imagen ya seleccionada)
+            handlePreview();
+            
+            console.log('Vista previa de imágenes inicializada correctamente');
+        } else {
+            console.error('No se encontraron todos los elementos necesarios para la vista previa');
+        }
+    };
+</script>
+
+<%- include('../partials/footer') %>

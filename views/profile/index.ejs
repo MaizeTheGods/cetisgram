@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="position-relative d-inline-block">
+                            <% if (userData.photoURL) { %>
+                                <img src="<%= userData.photoURL %>" alt="<%= userData.username %>" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; object-fit: cover;">
+                            <% } else { %>
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 150px; height: 150px; margin: 0 auto;">
+                                    <span class="text-white" style="font-size: 3rem;"><%= userData.username.charAt(0).toUpperCase() %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                        
+                        <h3 class="mt-3"><%= userData.username %></h3>
+                        <p class="text-muted">
+                            <% if (userData.role === 'admin') { %>
+                                <span class="badge bg-danger">Administrador</span>
+                            <% } else { %>
+                                <span class="badge bg-info">Estudiante</span>
+                            <% } %>
+                        </p>
+                        
+                        <% if (userData.bio) { %>
+                            <p><%= userData.bio %></p>
+                        <% } %>
+                        
+                        <div class="mt-3">
+                            <a href="/profile/edit" class="btn btn-primary">Editar Perfil</a>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-6 text-center">
+                            <h5>Miembro desde</h5>
+                            <p><%= userData.createdAt ? new Date(userData.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida' %></p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <h5>Correo</h5>
+                            <p><%= userData.email %></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

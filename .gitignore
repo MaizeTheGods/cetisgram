@@ -1,0 +1,29 @@
+# Dependencias
+/node_modules
+
+# Archivos de entorno (contienen credenciales privadas)
+.env
+
+# Archivos de credenciales de Firebase
+cetisgram-95d84-firebase-adminsdk-fbsvc-95bc67028b.json
+*.json.private
+*-firebase-adminsdk-*.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Directorios de caché
+.npm
+.eslintcache
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Directorios y archivos de IDE/editores
+.idea
+.vscode
+*.swp
+*.swo

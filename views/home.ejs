@@ -1,0 +1,123 @@
+<%- include('partials/header') %>
+
+<div class="jumbotron bg-light p-5 rounded-3 mb-4">
+    <div class="container">
+        <h1 class="display-4">Bienvenido a Cetisgram</h1>
+        <p class="lead">Una plataforma social donde puedes compartir CHISMES , hacer preguntas y hablar con otros estudiantes .</p>
+        <hr class="my-4">
+        <p>Participa en conversaciones, comparte tus chismes o simplemente explora el contenido.</p>
+        
+        <% if (!locals.user) { %>
+            <div class="d-flex gap-2 mt-3">
+                <a href="/auth/register" class="btn btn-primary">Registrarse</a>
+                <a href="/auth/login" class="btn btn-outline-primary">Iniciar sesión</a>
+                <a href="/auth/anonymous" class="btn btn-outline-secondary">Modo anónimo</a>
+            </div>
+        <% } else { %>
+            <a href="/posts/new" class="btn btn-primary">Crear nuevo post</a>
+        <% } %>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <h2 class="mb-4">Posts recientes</h2>
+        
+        <% if (posts && posts.length > 0) { %>
+            <div class="row row-cols-1 g-4">
+                <% posts.forEach(post => { %>
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h3 class="card-title">
+                                    <a href="/posts/<%= post.id %>" class="text-decoration-none text-dark"><%= post.title %></a>
+                                </h3>
+                                <p class="card-text text-truncate"><%= post.content %></p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group">
+                                        <a href="/posts/<%= post.id %>" class="btn btn-sm btn-outline-primary">Leer más</a>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="far fa-clock me-1"></i><%= post.createdAt %>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted d-flex align-items-center">
+                                        <% console.log('Post author info:', post.authorId, post.authorName, post.authorPhotoURL); %>
+                                        <% if (post.authorPhotoURL) { %>
+                                            <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-1" width="24" height="24" alt="<%= post.authorName %>" style="object-fit: cover;">
+                                        <% } else { %>
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-1" style="width: 24px; height: 24px;">
+                                                <span class="text-white" style="font-size: 0.8rem;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
+                                            </div>
+                                        <% } %>
+                                        <%= post.authorName || 'Anónimo' %>
+                                    </small>
+                                    <div>
+                                        <span class="badge bg-primary rounded-pill me-1">
+                                            <i class="far fa-eye me-1"></i><%= post.views || 0 %>
+                                        </span>
+                                        <span class="badge bg-danger rounded-pill">
+                                            <i class="far fa-heart me-1"></i><%= post.likes || 0 %>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+            <div class="mt-4">
+                <a href="/posts" class="btn btn-outline-primary">Ver todos los posts</a>
+            </div>
+        <% } else { %>
+            <div class="alert alert-info">
+                <p class="mb-0">Aún no hay posts. ¡Sé el primero en crear uno!</p>
+            </div>
+            <a href="/posts/new" class="btn btn-primary">Crear nuevo post</a>
+        <% } %>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Sobre Cetisgram</h5>
+            </div>
+            <div class="card-body">
+                <p>Cetisgram es una plataforma social donde puedes:</p>
+                <ul>
+                    <li>Publicar contenido y compartir ideas</li>
+                    <li>Comentar en publicaciones de otros usuarios</li>
+                    <li>Participar de forma anónima o con cuenta</li>
+                    <li>Dar me gusta a publicaciones interesantes</li>
+                </ul>
+                <a href="/about" class="btn btn-sm btn-outline-primary">Más información</a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Únete a la comunidad</h5>
+            </div>
+            <div class="card-body">
+                <p>Forma parte de nuestra comunidad y disfruta de todas las funciones.</p>
+                
+                <% if (!locals.user) { %>
+                    <div class="d-grid gap-2">
+                        <a href="/auth/register" class="btn btn-success">Crear una cuenta</a>
+                        <small class="text-muted text-center">¿Ya tienes cuenta? <a href="/auth/login">Inicia sesión</a></small>
+                    </div>
+                <% } else { %>
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Ya eres parte de la comunidad
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

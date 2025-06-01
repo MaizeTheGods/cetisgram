@@ -1,0 +1,516 @@
+<%- include('../partials/header') %>
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Inicio</a></li>
+        <li class="breadcrumb-item"><a href="/posts">Posts</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><%=post.title%></li>
+    </ol>
+</nav>
+
+<div class="card shadow-sm mb-5">
+    <div class="card-body">
+        <h1 class="card-title"><%= post.title %></h1>
+        
+        <div class="d-flex justify-content-between text-muted mb-4">
+            <div class="d-flex align-items-center">
+                <% if (post.authorPhotoURL) { %>
+                    <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="32" height="32" alt="<%= post.authorName %>" style="object-fit: cover;">
+                <% } else { %>
+                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                        <span class="text-white" style="font-size: 1rem;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
+                    </div>
+                <% } %>
+                <div>
+                    <span><%= post.authorName || 'Anónimo' %></span>
+                    <% if (post.authorRole) { %>
+                        <span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %> ms-1">
+                            <%= post.authorRole %>
+                        </span>
+                    <% } %>
+                    <% if (post.isPinned) { %>
+                        <span class="badge bg-primary ms-1" title="Post fijado">
+                            <i class="fas fa-thumbtack me-1"></i>Fijado
+                        </span>
+                    <% } %>
+                </div>
+            </div>
+            <div>
+                <i class="far fa-clock me-1"></i> <%= post.createdAt %>
+            </div>
+        </div>
+        
+        <% if (post.imageUrl) { %>
+            <div class="text-center mb-4">
+                <a href="#" class="post-image-link" data-bs-toggle="modal" data-bs-target="#imageModal">
+                    <img src="<%= post.imageUrl %>" alt="Imagen del post" class="img-fluid rounded post-image">
+                    <div class="overlay-zoom">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                </a>
+            </div>
+            
+            <!-- Modal para vista previa de imagen -->
+            <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="imageModalLabel"><%= post.title %></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <img src="<%= post.imageUrl %>" alt="Imagen del post" class="img-fluid w-100">
+                        </div>
+                        <div class="modal-footer">
+                            <a href="<%= post.imageUrl %>" class="btn btn-primary" target="_blank">
+                                <i class="fas fa-external-link-alt me-1"></i> Ver imagen original
+                            </a>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% } %>
+        
+        <div class="post-content mb-4">
+            <%= post.content %>
+        </div>
+        
+        <div class="post-stats d-flex flex-wrap justify-content-between align-items-center border-top pt-3">
+            <div class="d-flex align-items-center">
+                <% if (locals.user) { %>
+                    <button id="likeButton" class="btn btn-sm btn-outline-danger me-2" data-post-id="<%= post.id %>">
+                        <i class="far fa-heart"></i> Me gusta
+                    </button>
+                    <span id="likeCount" class="me-3"><%= post.likes || 0 %></span>
+                <% } else { %>
+                    <span class="me-3">
+                        <i class="far fa-heart text-danger"></i> <%= post.likes || 0 %> Me gusta
+                    </span>
+                <% } %>
+                
+                <span class="me-3">
+                    <i class="far fa-comment text-primary"></i> <%= comments.length %> Comentarios
+                </span>
+                
+                <span>
+                    <i class="far fa-eye text-secondary"></i> <%= post.views || 0 %> Vistas
+                </span>
+            </div>
+            
+            <div>
+                <% if (locals.user && (locals.user.uid === post.authorId || locals.user.isAdmin)) { %>
+                    <% if (locals.user.uid === post.authorId) { %>
+                        <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                    <% } %>
+                    <button class="btn btn-sm btn-outline-danger me-1" id="deletePostBtn" data-post-id="<%= post.id %>">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                    <% if (locals.user.isAdmin) { %>
+                        <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %>" id="pinPostBtn" data-post-id="<%= post.id %>">
+                            <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
+                        </button>
+                    <% } %>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sección de comentarios -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h3 class="mb-0 h5">Comentarios (<span id="commentCount"><%= comments.length %></span>)</h3>
+    </div>
+    <div class="card-body">
+        <% if (locals.user || true) { %>
+            <!-- Formulario para añadir comentarios con AJAX -->
+            <form id="commentForm" class="mb-4">
+                <input type="hidden" name="postId" id="postId" value="<%= post.id %>">
+                <div class="mb-3">
+                    <label for="content" class="form-label">Añadir un comentario:</label>
+                    <textarea class="form-control" id="commentContent" name="content" rows="3" required></textarea>
+                </div>
+                <div id="commentError" class="alert alert-danger" style="display: none;"></div>
+                <button type="submit" id="submitCommentBtn" class="btn btn-primary">
+                    <i class="far fa-paper-plane"></i> <span id="submitBtnText">Publicar comentario</span>
+                    <span id="submitSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                </button>
+                <% if (!locals.user) { %>
+                    <small class="text-muted ms-2">Comentarás como anónimo. <a href="/auth/login">Inicia sesión</a> para usar tu nombre.</small>
+                <% } %>
+            </form>
+        <% } else { %>
+            <div class="alert alert-info mb-4">
+                <p><a href="/auth/login">Inicia sesión</a> o <a href="/auth/register">regístrate</a> para dejar un comentario.</p>
+            </div>
+        <% } %>
+        
+        <!-- Lista de comentarios -->
+        <div id="commentsList">
+            <% if (comments && comments.length > 0) { %>
+                <% comments.forEach(comment => { %>
+                    <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>">
+                        <div class="d-flex justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <% if (comment.authorPhotoURL) { %>
+                                    <img src="<%= comment.authorPhotoURL %>" class="rounded-circle me-2" width="28" height="28" alt="<%= comment.authorName %>" style="object-fit: cover;">
+                                <% } else { %>
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px;">
+                                        <span class="text-white" style="font-size: 0.8rem;"><%= (comment.authorName || 'A').charAt(0).toUpperCase() %></span>
+                                    </div>
+                                <% } %>
+                                <h6 class="mb-0">
+                                    <%= comment.authorName || 'Anónimo' %>
+                                    <% if (comment.isAnonymous) { %>
+                                        <span class="badge bg-secondary ms-1">Anónimo</span>
+                                    <% } %>
+                                </h6>
+                            </div>
+                            <small class="text-muted">
+                                <i class="far fa-clock me-1"></i> <%= comment.createdAt %>
+                                <% if (comment.edited) { %>
+                                    <span class="ms-1">(Editado)</span>
+                                <% } %>
+                            </small>
+                        </div>
+                        
+                        <div class="comment-content my-2">
+                            <%= comment.content %>
+                        </div>
+                        
+                        <% if (locals.user && (locals.user.uid === comment.authorId || locals.user.isAdmin)) { %>
+                            <div class="comment-actions">
+                                <button class="btn btn-sm btn-link text-primary edit-comment-btn" data-comment-id="<%= comment.id %>">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-sm btn-link text-danger delete-comment-btn" data-comment-id="<%= comment.id %>">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        <% } %>
+                    </div>
+                <% }); %>
+            <% } else { %>
+                <div class="alert alert-light" id="noCommentsMessage">
+                    <p class="mb-0">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- Script para el manejo de likes y eliminación de comentarios -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Manejo del formulario de comentarios con AJAX
+        const commentForm = document.getElementById('commentForm');
+        if (commentForm) {
+            commentForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Obtener los valores del formulario
+                const postId = document.getElementById('postId').value;
+                const content = document.getElementById('commentContent').value;
+                
+                // Validar que haya contenido
+                if (!content.trim()) {
+                    showCommentError('El comentario no puede estar vacío');
+                    return;
+                }
+                
+                // Mostrar spinner y deshabilitar botón
+                toggleCommentLoading(true);
+                
+                try {
+                    const response = await fetch('/comments/new', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            postId,
+                            content
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Limpiar formulario
+                        document.getElementById('commentContent').value = '';
+                        hideCommentError();
+                        
+                        // Agregar el nuevo comentario a la lista
+                        addNewCommentToUI(data.comment);
+                        
+                        // Actualizar contador
+                        updateCommentCount(1);
+                    } else {
+                        showCommentError(data.message || 'Error al publicar el comentario');
+                    }
+                } catch (error) {
+                    console.error('Error al enviar comentario:', error);
+                    showCommentError('Hubo un error al publicar el comentario. Inténtalo de nuevo.');
+                } finally {
+                    toggleCommentLoading(false);
+                }
+            });
+        }
+        
+        // Funciones auxiliares para el formulario de comentarios
+        function showCommentError(message) {
+            const errorDiv = document.getElementById('commentError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function hideCommentError() {
+            const errorDiv = document.getElementById('commentError');
+            errorDiv.style.display = 'none';
+        }
+        
+        function toggleCommentLoading(isLoading) {
+            const submitBtn = document.getElementById('submitCommentBtn');
+            const submitText = document.getElementById('submitBtnText');
+            const spinner = document.getElementById('submitSpinner');
+            
+            submitBtn.disabled = isLoading;
+            spinner.style.display = isLoading ? 'inline-block' : 'none';
+            submitText.innerText = isLoading ? 'Publicando...' : 'Publicar comentario';
+        }
+        
+        function addNewCommentToUI(comment) {
+            const commentsList = document.getElementById('commentsList');
+            const noCommentsMessage = document.getElementById('noCommentsMessage');
+            
+            // Si no hay comentarios, eliminar el mensaje
+            if (noCommentsMessage) {
+                noCommentsMessage.remove();
+            }
+            
+            // Crear el elemento del comentario
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment mb-4 border-bottom pb-3';
+            commentElement.id = `comment-${comment.id}`;
+            
+            // Determinar si mostrar botones de edición/eliminación
+            const currentUserId = '<%= locals.user ? locals.user.uid : "" %>';
+            const isAdmin = '<%= locals.user ? locals.user.isAdmin : "false" %>' === 'true';
+            const showActions = currentUserId === comment.authorId || isAdmin;
+            
+            // HTML del comentario
+            commentElement.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <h6 class="mb-1">
+                        <i class="fas fa-user-circle me-1"></i>
+                        ${comment.authorName || 'Anónimo'}
+                        ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
+                    </h6>
+                    <small class="text-muted">
+                        <i class="far fa-clock me-1"></i> ${comment.createdAt}
+                    </small>
+                </div>
+                
+                <div class="comment-content my-2">
+                    ${comment.content}
+                </div>
+                
+                ${showActions ? `
+                <div class="comment-actions">
+                    <button class="btn btn-sm btn-link text-primary edit-comment-btn" data-comment-id="${comment.id}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn btn-sm btn-link text-danger delete-comment-btn" data-comment-id="${comment.id}">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </div>
+                ` : ''}
+            `;
+            
+            // Agregar el comentario al principio de la lista
+            commentsList.insertBefore(commentElement, commentsList.firstChild);
+            
+            // Agregar event listener para el botón de eliminar
+            const deleteBtn = commentElement.querySelector('.delete-comment-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', handleDeleteComment);
+            }
+        }
+        
+        function updateCommentCount(increment) {
+            const commentCount = document.getElementById('commentCount');
+            const currentCount = parseInt(commentCount.innerText);
+            commentCount.innerText = currentCount + increment;
+        }
+        
+        function handleDeleteComment() {
+            if (confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
+                const commentId = this.getAttribute('data-comment-id');
+                
+                try {
+                    fetch(`/comments/${commentId}`, {
+                        method: 'DELETE'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Eliminar el comentario de la UI
+                            document.getElementById(`comment-${commentId}`).remove();
+                            
+                            // Actualizar contador
+                            updateCommentCount(-1);
+                            
+                            // Mostrar mensaje si no hay comentarios
+                            if (parseInt(document.getElementById('commentCount').innerText) === 0) {
+                                const commentsList = document.getElementById('commentsList');
+                                commentsList.innerHTML = `
+                                    <div class="alert alert-light" id="noCommentsMessage">
+                                        <p class="mb-0">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Hubo un error al eliminar el comentario');
+                    });
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Hubo un error al eliminar el comentario');
+                }
+            }
+        }
+
+        // Manejo de likes
+        const likeButton = document.getElementById('likeButton');
+        if (likeButton) {
+            likeButton.addEventListener('click', async function() {
+                const postId = this.getAttribute('data-post-id');
+                try {
+                    const response = await fetch(`/posts/${postId}/like`, {
+                        method: 'POST'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const likeCount = document.getElementById('likeCount');
+                        const currentLikes = parseInt(likeCount.innerText);
+                        
+                        if (data.action === 'liked') {
+                            likeCount.innerText = currentLikes + 1;
+                            likeButton.classList.remove('btn-outline-danger');
+                            likeButton.classList.add('btn-danger');
+                        } else {
+                            likeCount.innerText = currentLikes - 1;
+                            likeButton.classList.remove('btn-danger');
+                            likeButton.classList.add('btn-outline-danger');
+                        }
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Hubo un error al procesar tu like');
+                }
+            });
+        }
+        
+        // Manejo de eliminación de posts
+        const deletePostBtn = document.getElementById('deletePostBtn');
+        if (deletePostBtn) {
+            deletePostBtn.addEventListener('click', async function() {
+                if (confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.')) {
+                    const postId = this.getAttribute('data-post-id');
+                    
+                    try {
+                        const response = await fetch(`/posts/${postId}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert('Post eliminado correctamente');
+                            window.location.href = '/posts'; // Redireccionar a la lista de posts
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    } catch (error) {
+                        console.error('Error al eliminar post:', error);
+                        alert('Hubo un error al eliminar el post');
+                    }
+                }
+            });
+        }
+        
+        // Manejo de fijar/desfijar posts (solo para administradores)
+        const pinPostBtn = document.getElementById('pinPostBtn');
+        if (pinPostBtn) {
+            pinPostBtn.addEventListener('click', async function() {
+                const postId = this.getAttribute('data-post-id');
+                const isPinned = this.textContent.trim().includes('Desfijar');
+                const action = isPinned ? 'desfijar' : 'fijar';
+                
+                if (confirm(`¿Estás seguro de que quieres ${action} este post?`)) {
+                    try {
+                        const response = await fetch(`/posts/${postId}/pin`, {
+                            method: 'POST'
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Actualizar el botón
+                            if (data.isPinned) {
+                                this.innerHTML = '<i class="fas fa-thumbtack"></i> Desfijar';
+                                this.classList.remove('btn-outline-primary');
+                                this.classList.add('btn-primary');
+                                
+                                // Añadir el badge de fijado si no existe
+                                const authorInfo = document.querySelector('.d-flex.justify-content-between.text-muted.mb-4 > div:first-child');
+                                if (!authorInfo.querySelector('.badge.bg-primary')) {
+                                    const pinnedBadge = document.createElement('span');
+                                    pinnedBadge.className = 'badge bg-primary ms-1';
+                                    pinnedBadge.title = 'Post fijado';
+                                    pinnedBadge.innerHTML = '<i class="fas fa-thumbtack me-1"></i>Fijado';
+                                    authorInfo.appendChild(pinnedBadge);
+                                }
+                            } else {
+                                this.innerHTML = '<i class="fas fa-thumbtack"></i> Fijar';
+                                this.classList.remove('btn-primary');
+                                this.classList.add('btn-outline-primary');
+                                
+                                // Eliminar el badge de fijado si existe
+                                const pinnedBadge = document.querySelector('.badge.bg-primary[title="Post fijado"]');
+                                if (pinnedBadge) {
+                                    pinnedBadge.remove();
+                                }
+                            }
+                            
+                            alert(`Post ${data.isPinned ? 'fijado' : 'desfijado'} correctamente`);
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    } catch (error) {
+                        console.error('Error al fijar/desfijar post:', error);
+                        alert('Hubo un error al procesar tu solicitud');
+                    }
+                }
+            });
+        }
+        
+        // Manejo de eliminación de comentarios (para comentarios existentes)
+        document.querySelectorAll('.delete-comment-btn').forEach(button => {
+            button.addEventListener('click', handleDeleteComment);
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>

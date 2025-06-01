@@ -1,0 +1,37 @@
+<%- include('partials/header') %>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0">Error</h3>
+                </div>
+                <div class="card-body py-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-exclamation-triangle fa-4x text-danger"></i>
+                    </div>
+                    
+                    <h2 class="mb-3"><%= message || 'Ha ocurrido un error' %></h2>
+                    
+                    <% if (locals.error && locals.error.status) { %>
+                        <p class="lead">Código de error: <%= error.status %></p>
+                    <% } %>
+                    
+                    <% if (process.env.NODE_ENV !== 'production' && locals.error) { %>
+                        <div class="alert alert-secondary mt-4">
+                            <pre class="mb-0"><%= error.stack %></pre>
+                        </div>
+                    <% } %>
+                    
+                    <div class="mt-4 text-center">
+                        <a href="/" class="btn btn-primary me-2">Volver al inicio</a>
+                        <button class="btn btn-outline-secondary" onclick="window.history.back();">Volver atrás</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

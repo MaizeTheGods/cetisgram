@@ -1,0 +1,132 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Posts</h1>
+    <% if (locals.user) { %>
+        <a href="/posts/new" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Nuevo post
+        </a>
+    <% } %>
+</div>
+
+<div class="row row-cols-1 g-4">
+    <% if (posts && posts.length > 0) { %>
+        <% posts.forEach(post => { %>
+            <div class="col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h2 class="card-title h4">
+                            <a href="/posts/<%= post.id %>" class="text-decoration-none text-dark">
+                                <%= post.title %>
+                            </a>
+                        </h2>
+                        
+                        <p class="card-text text-muted mb-2">
+                            <small>
+                                <i class="fas fa-user me-1"></i> <%= post.authorName || 'Anónimo' %> 
+                                <% if (post.authorRole) { %>
+                                    <span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %> ms-1">
+                                        <%= post.authorRole %>
+                                    </span>
+                                <% } %>
+                                <% if (post.isPinned) { %>
+                                    <span class="badge bg-primary ms-1" title="Post fijado">
+                                        <i class="fas fa-thumbtack me-1"></i>Fijado
+                                    </span>
+                                <% } %>
+                                <i class="far fa-clock ms-2 me-1"></i> <%= post.createdAt %>
+                            </small>
+                        </p>
+                        
+                        <p class="card-text">
+                            <% if (post.content && post.content.length > 200) { %>
+                                <%= post.content.substring(0, 200) %>...
+                            <% } else { %>
+                                <%= post.content %>
+                            <% } %>
+                        </p>
+                        
+                        <% if (post.imageUrl) { %>
+                            <div class="text-center mb-3">
+                                <img src="<%= post.imageUrl %>" alt="Imagen del post" class="img-fluid rounded" style="max-height: 200px;">
+                            </div>
+                        <% } %>
+                        
+                        <a href="/posts/<%= post.id %>" class="btn btn-sm btn-outline-primary">Leer más</a>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between">
+                            <span>
+                                <i class="far fa-comment me-1"></i> 
+                                <%= post.commentCount || 0 %> comentario(s)
+                            </span>
+                            <div>
+                                <span class="me-3">
+                                    <i class="far fa-eye me-1"></i> 
+                                    <%= post.views || 0 %> vistas
+                                </span>
+                                <span>
+                                    <i class="far fa-heart me-1"></i> 
+                                    <%= post.likes || 0 %> likes
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+        
+        <!-- Paginación -->
+        <div class="col-12 mt-4">
+            <nav aria-label="Navegación de posts">
+                <ul class="pagination justify-content-center">
+                    <% if (prevPage) { %>
+                        <li class="page-item">
+                            <a class="page-link" href="/posts?page=<%= prevPage %>">Anterior</a>
+                        </li>
+                    <% } else { %>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Anterior</a>
+                        </li>
+                    <% } %>
+                    
+                    <li class="page-item active" aria-current="page">
+                        <a class="page-link" href="#">Página <%= currentPage %></a>
+                    </li>
+                    
+                    <% if (nextPage) { %>
+                        <li class="page-item">
+                            <a class="page-link" href="/posts?page=<%= nextPage %>&cursor=<%= nextCursor %>">Siguiente</a>
+                        </li>
+                    <% } else { %>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Siguiente</a>
+                        </li>
+                    <% } %>
+                </ul>
+            </nav>
+        </div>
+    <% } else { %>
+        <div class="col">
+            <div class="alert alert-info">
+                <h4 class="alert-heading">No hay posts disponibles</h4>
+                <p>Parece que aún no hay posts en el foro. ¡Sé el primero en crear uno!</p>
+                
+                <% if (locals.user) { %>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="/posts/new" class="btn btn-primary">Crear nuevo post</a>
+                    </p>
+                <% } else { %>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="/auth/login" class="alert-link">Inicia sesión</a> o 
+                        <a href="/auth/register" class="alert-link">regístrate</a> para crear posts.
+                    </p>
+                <% } %>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<%- include('../partials/footer') %>

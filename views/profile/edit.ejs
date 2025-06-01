@@ -1,0 +1,120 @@
+<%- include('../partials/header') %>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Editar Perfil</h4>
+                </div>
+                <div class="card-body">
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    
+                    <div class="text-center mb-4">
+                        <div class="position-relative d-inline-block mb-3">
+                            <div id="profile-photo-container">
+                                <% if (userData.photoURL) { %>
+                                    <img src="<%= userData.photoURL %>" alt="<%= userData.username %>" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; object-fit: cover;">
+                                <% } else { %>
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 150px; height: 150px; margin: 0 auto;">
+                                        <span class="text-white" style="font-size: 3rem;"><%= userData.username.charAt(0).toUpperCase() %></span>
+                                    </div>
+                                <% } %>
+                            </div>
+                            
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-primary" id="change-photo-btn">Cambiar foto</button>
+                            </div>
+                            
+                            <!-- Formulario oculto para subir la foto -->
+                            <form id="photo-form" style="display:none;" enctype="multipart/form-data">
+                                <input type="file" id="profilePhoto" name="profilePhoto" class="d-none" accept="image/*">
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <form action="/profile/update" method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Nombre de usuario</label>
+                            <input type="text" class="form-control" id="username" name="username" value="<%= userData.username %>" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="bio" class="form-label">Biografía</label>
+                            <textarea class="form-control" id="bio" name="bio" rows="3"><%= userData.bio || '' %></textarea>
+                            <div class="form-text">Comparte algo sobre ti (opcional)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Correo electrónico</label>
+                            <div><%= userData.email %></div>
+                            <div class="form-text">El correo no se puede cambiar</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="/profile" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const changePhotoBtn = document.getElementById('change-photo-btn');
+        const profilePhotoInput = document.getElementById('profilePhoto');
+        const photoForm = document.getElementById('photo-form');
+        const photoContainer = document.getElementById('profile-photo-container');
+        
+        // Al hacer clic en el botón, activar el input de archivo
+        changePhotoBtn.addEventListener('click', function() {
+            profilePhotoInput.click();
+        });
+        
+        // Cuando se selecciona un archivo, subirlo automáticamente
+        profilePhotoInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                // Mostrar una vista previa
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Crear una imagen temporal para mostrar la vista previa
+                    photoContainer.innerHTML = `<img src="${e.target.result}" alt="Vista previa" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; object-fit: cover;">`;
+                }
+                reader.readAsDataURL(this.files[0]);
+                
+                // Subir la imagen con AJAX
+                const formData = new FormData(photoForm);
+                
+                fetch('/profile/update-photo', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // La imagen se subió correctamente
+                        photoContainer.innerHTML = `<img src="${data.photoURL}" alt="Foto de perfil" class="rounded-circle img-thumbnail" style="width: 150px; height: 150px; object-fit: cover;">`;
+                        // Mostrar un mensaje de éxito
+                        alert('Foto de perfil actualizada correctamente');
+                    } else {
+                        // Hubo un error
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al subir la imagen');
+                });
+            }
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>
