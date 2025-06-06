@@ -16,12 +16,12 @@
             <div class="d-flex align-items-center">
                 <% if (post.authorPhotoURL) { %>
                     <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
-                        <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="36" height="36" alt="<%= post.authorName %>" style="object-fit: cover;">
+                        <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="70" height="70" alt="<%= post.authorName %>" style="object-fit: cover;">
                     </a>
                 <% } else { %>
                     <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
-                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
-                            <span class="text-white" style="font-size: 18px;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 70px; height: 70px;">
+                            <span class="text-white" style="font-size: 35px;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
                         </div>
                     </a>
                 <% } %>
@@ -173,12 +173,12 @@
                             <div class="d-flex align-items-center">
                                 <% if (comment.authorPhotoURL) { %>
                                     <a href="/posts/user/<%= comment.authorId %>" class="text-decoration-none">
-                                        <img src="<%= comment.authorPhotoURL %>" class="rounded-circle me-2" width="36" height="36" alt="<%= comment.authorName %>" style="object-fit: cover;">
+                                        <img src="<%= comment.authorPhotoURL %>" class="rounded-circle me-2" width="70" height="70" alt="<%= comment.authorName %>" style="object-fit: cover;">
                                     </a>
                                 <% } else { %>
                                     <a href="/posts/user/<%= comment.authorId %>" class="text-decoration-none">
-                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
-                                            <span class="text-white" style="font-size: 18px;"><%= (comment.authorName || 'C').charAt(0).toUpperCase() %></span>
+                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 70px; height: 70px;">
+                                            <span class="text-white" style="font-size: 35px;"><%= (comment.authorName || 'C').charAt(0).toUpperCase() %></span>
                                         </div>
                                     </a>
                                 <% } %>
@@ -354,9 +354,9 @@
             
             // Crear elemento de perfil
             const profilePicture = comment.authorPhotoURL ? 
-                `<img src="${comment.authorPhotoURL}" class="rounded-circle me-2" width="48" height="48" alt="${comment.authorName}" style="object-fit: cover;">` : 
-                `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 48px; height: 48px;">
-                    <span class="text-white" style="font-size: 1.2rem;">${(comment.authorName || 'A').charAt(0).toUpperCase()}</span>
+                `<img src="${comment.authorPhotoURL}" class="rounded-circle me-2" width="70" height="70" alt="${comment.authorName}" style="object-fit: cover;">` : 
+                `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 70px; height: 70px;">
+                    <span class="text-white" style="font-size: 35px;">${(comment.authorName || 'A').charAt(0).toUpperCase()}</span>
                 </div>`;
             
             // HTML del comentario
