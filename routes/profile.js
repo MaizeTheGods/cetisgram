@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../config/firebase');
-const { cloudinary, uploadProfile } = require('../config/cloudinary');
+const { cloudinary, uploadProfilePic } = require('../config/cloudinary');
 const { 
     doc, getDoc, updateDoc
 } = require('firebase/firestore');
@@ -111,7 +111,7 @@ router.get('/edit', isAuthenticated, async (req, res) => {
 });
 
 // Ruta para actualizar foto de perfil
-router.post('/update-photo', isAuthenticated, uploadProfile.single('profilePhoto'), async (req, res) => {
+router.post('/update-photo', isAuthenticated, uploadProfilePic.single('profilePhoto'), async (req, res) => {
     try {
         const userId = req.session.user.uid;
         
