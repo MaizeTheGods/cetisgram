@@ -54,47 +54,75 @@ app.use(session(sessionConfig));
 
 // Middleware para manejo de usuarios (autenticados y anónimos)
 app.use(async (req, res, next) => {
+    console.log(`[SESSION_MIDDLEWARE] Iniciando para ruta: ${req.path}`);
     try {
-        // Si no hay usuario en sesión, crear uno anónimo
-        if (!req.session.user) {
+        // Estado inicial de la sesión
+        console.log('[SESSION_MIDDLEWARE] Estado inicial de req.session.user:', JSON.stringify(req.session.user));
+
+        // Crear usuario anónimo solo si no existe NINGÚN usuario en sesión.
+        if (typeof req.session.user === 'undefined' || req.session.user === null) {
             const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
             req.session.user = {
                 uid: anonymousId,
                 isAnonymous: true,
                 username: 'Anónimo_' + anonymousId.substring(5, 10),
-                role: 'estudiante',
-                isAdmin: false
+                role: 'estudiante', // Rol por defecto para anónimos
+                isAdmin: false,
+                photoURL: null // Anónimos no tienen foto
             };
-            console.log('Nuevo usuario anónimo creado:', req.session.user.uid);
+            console.log('[SESSION_MIDDLEWARE] Nuevo usuario anónimo creado en sesión:', JSON.stringify(req.session.user));
+        } else {
+            console.log('[SESSION_MIDDLEWARE] Usuario existente en sesión:', JSON.stringify(req.session.user));
         }
 
-        // Si es un usuario registrado (no anónimo), actualizar desde la base de datos
-        if (req.session.user && !req.session.user.isAnonymous) {
+        // Si el usuario en sesión es autenticado (no anónimo), intentar refrescar sus datos desde Firestore.
+        if (req.session.user && req.session.user.uid && !req.session.user.isAnonymous) {
+            console.log(`[SESSION_MIDDLEWARE] Usuario autenticado (${req.session.user.uid}). Intentando refrescar datos desde Firestore.`);
             try {
-                const userDoc = await getDoc(doc(db, 'users', req.session.user.uid));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    req.user = {
-                        ...req.session.user,
-                        photoURL: userData.photoURL || null,
-                        username: userData.username || req.session.user.username,
-                        role: userData.role || req.session.user.role || 'estudiante',
-                        isAdmin: (userData.role === 'admin') || req.session.user.isAdmin || false
+                const userDocRef = doc(db, 'users', req.session.user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    const userDataFromDb = userDocSnap.data();
+                    // Mantener datos de sesión existentes y sobreescribir/añadir con los de Firestore
+                    const updatedUser = {
+                        ...req.session.user, // Mantener datos base de la sesión (como CSRF si estuviera aquí)
+                        uid: req.session.user.uid, // Asegurar que el UID no cambie
+                        username: userDataFromDb.username || req.session.user.username, // Usar de DB, fallback a sesión
+                        fullName: userDataFromDb.fullName || req.session.user.fullName || '',
+                        email: userDataFromDb.email || req.session.user.email,
+                        photoURL: userDataFromDb.photoURL !== undefined ? userDataFromDb.photoURL : req.session.user.photoURL,
+                        role: userDataFromDb.role || req.session.user.role || 'estudiante',
+                        isAdmin: (userDataFromDb.role === 'admin') || req.session.user.isAdmin || false,
+                        isAnonymous: false // Asegurar que no se marque como anónimo
                     };
-                    // Actualizar la sesión con los datos más recientes
-                    req.session.user = req.user;
+                    req.session.user = updatedUser;
+                    console.log('[SESSION_MIDDLEWARE] Datos del usuario autenticado refrescados desde Firestore:', JSON.stringify(req.session.user));
+                } else {
+                    // El usuario existe en sesión pero no en Firestore (podría haber sido eliminado)
+                    // En este caso, podríamos invalidar la sesión o marcarlo como anónimo.
+                    // Por ahora, lo dejaremos con los datos de sesión pero registraremos el problema.
+                    console.warn(`[SESSION_MIDDLEWARE] Usuario ${req.session.user.uid} en sesión no encontrado en Firestore. Se mantendrán los datos de sesión actuales.`);
                 }
             } catch (dbError) {
-                console.error('Error al obtener datos del usuario:', dbError);
-                // Continuar con los datos de sesión existentes en caso de error
+                console.error('[SESSION_MIDDLEWARE] Error al refrescar datos del usuario desde Firestore:', dbError);
+                // No se pudo conectar a Firestore o hubo un error. Continuar con los datos de sesión existentes.
+                // Es importante no destruir la sesión aquí, solo loguear el error.
             }
         }
 
-        // Hacer que el usuario esté disponible en todas las vistas
+        // Asegurar que res.locals.user siempre esté disponible para las vistas.
         res.locals.user = req.session.user || null;
+        if (res.locals.user) {
+            console.log(`[SESSION_MIDDLEWARE] res.locals.user establecido para vistas: ${JSON.stringify(res.locals.user)}`);
+        } else {
+            console.log('[SESSION_MIDDLEWARE] res.locals.user es null (ningún usuario en sesión).');
+        }
+        
         next();
     } catch (error) {
-        console.error('Error en middleware de usuario:', error);
+        console.error('[SESSION_MIDDLEWARE] Error catastrófico en el middleware de sesión:', error);
+        // En caso de un error grave aquí, es mejor pasar el error al manejador de errores de Express.
         next(error);
     }
 });

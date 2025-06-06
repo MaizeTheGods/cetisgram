@@ -754,10 +754,10 @@ router.get('/user/:userId', allowAnyUser, async (req, res) => {
         const followersSnap = await getDocs(collection(db, 'users', userId, 'followers'));
         const followingSnap = await getDocs(collection(db, 'users', userId, 'following'));
         
-        // Calculate total likes from posts
+        // Calculate total likes from user's posts
         let totalLikes = 0;
-        posts.forEach(post => {
-            totalLikes += post.likesCount || 0;
+        userPosts.forEach(post => {
+            totalLikes += post.likes || 0; // Assuming 'likes' is the field for like count on a post object
         });
 
         try {
@@ -771,7 +771,7 @@ router.get('/user/:userId', allowAnyUser, async (req, res) => {
                     postsCount: posts.length || 0,
                     totalLikes: totalLikes || 0
                 },
-                posts: posts || [],
+                posts: userPosts || [],
                 isFollowing: isFollowing,
                 isOwnProfile: currentUserId === userId,
                 user: req.session.user || null
