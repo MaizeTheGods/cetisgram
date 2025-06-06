@@ -23,7 +23,18 @@
                         
                         <p class="card-text text-muted mb-2">
                             <small>
-                                <i class="fas fa-user me-1"></i> <%= post.authorName || 'Anónimo' %> 
+                                <% if (post.authorPhotoURL) { %>
+                                    <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none me-1">
+                                        <img src="<%= post.authorPhotoURL %>" class="rounded-circle" width="36" height="36" alt="<%= post.authorName %>" style="object-fit: cover;">
+                                    </a>
+                                <% } else { %>
+                                    <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none me-1">
+                                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white" style="width: 36px; height: 36px; font-size: 18px;">
+                                            <%= post.authorName ? post.authorName.charAt(0).toUpperCase() : '?' %>
+                                        </span>
+                                    </a>
+                                <% } %>
+                                <%= post.authorName || 'Anónimo' %> 
                                 <% if (post.authorRole) { %>
                                     <span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %> ms-1">
                                         <%= post.authorRole %>
