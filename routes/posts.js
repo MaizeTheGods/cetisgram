@@ -768,7 +768,7 @@ router.get('/user/:userId', allowAnyUser, async (req, res) => {
                     id: userId,
                     followersCount: followersSnap.size || 0,
                     followingCount: followingSnap.size || 0,
-                    postsCount: posts.length || 0,
+                    postsCount: userPosts.length || 0,
                     totalLikes: totalLikes || 0
                 },
                 posts: userPosts || [],
