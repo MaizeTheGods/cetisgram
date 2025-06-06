@@ -20,6 +20,7 @@
         <% } %>
         
         <form action="/posts/new" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <div class="mb-3">
                 <label for="title" class="form-label">Título <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="title" name="title" required>
@@ -33,14 +34,15 @@
             </div>
             
             <div class="mb-4">
-                <label for="image" class="form-label">Imagen (opcional)</label>
-                <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                <div class="form-text">Puedes subir una imagen JPG, PNG, GIF o WebP (máx. 5MB)</div>
+                <label for="mediaFile" class="form-label">Archivo Multimedia (Imagen o Video, opcional)</label>
+                <input type="file" class="form-control" id="mediaFile" name="mediaFile" accept="image/*,video/mp4,video/webm,video/ogg">
+                <div class="form-text">Sube una imagen (JPG, PNG, GIF, WebP) o un video (MP4, WebM, OGG). Máx. 10MB para imágenes, 50MB para videos (ejemplo).</div>
                 <div id="imagePreviewContainer" class="mt-3" style="display: none;">
                     <div class="card">
                         <div class="card-body text-center">
-                            <p class="mb-2"><strong>Vista previa:</strong></p>
+                            <p id="previewTitle" class="mb-2"><strong>Vista previa:</strong></p>
                             <img id="imagePreview" src="#" alt="Vista previa" class="img-fluid rounded" style="max-height: 300px;">
+                            <div id="mediaPreviewMessage" class="alert alert-info mt-2" style="display: none;"></div>
                         </div>
                     </div>
                 </div>
@@ -61,45 +63,69 @@
     // Ejecutar cuando el DOM está completamente cargado
     window.onload = function() {
         // Obtener referencias a los elementos del DOM
-        var imageInput = document.getElementById('image');
+        var mediaInput = document.getElementById('mediaFile');
         var imagePreview = document.getElementById('imagePreview');
         var imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        var previewTitle = document.getElementById('previewTitle');
+        var mediaPreviewMessage = document.getElementById('mediaPreviewMessage');
         
         // Verificar que los elementos existan para evitar errores
-        if (imageInput && imagePreview && imagePreviewContainer) {
+        if (mediaInput && imagePreview && imagePreviewContainer && previewTitle && mediaPreviewMessage) {
             // Función para manejar la vista previa
             function handlePreview() {
-                if (imageInput.files && imageInput.files[0]) {
-                    var reader = new FileReader();
+                // Resetear estado de la vista previa al inicio de la función
+                imagePreviewContainer.style.display = 'none';
+                imagePreview.src = '#';
+                imagePreview.style.display = 'block'; // Asegurar que la imagen sea visible por defecto si el contenedor se muestra
+                previewTitle.innerHTML = '<strong>Vista previa:</strong>';
+                mediaPreviewMessage.style.display = 'none';
+                mediaPreviewMessage.textContent = '';
+
+                if (mediaInput.files && mediaInput.files[0]) {
+                    const file = mediaInput.files[0];
                     
-                    reader.onload = function(e) {
-                        // Asegurarse de que la carga se completó correctamente
-                        if (e.target && e.target.result) {
-                            imagePreview.src = e.target.result;
-                            imagePreviewContainer.style.display = 'block';
+                    if (file.type.startsWith('image/')) {
+                        // Es una imagen, intentar mostrar vista previa
+                        var reader = new FileReader();
+                        
+                        reader.onload = function(e) {
+                            if (e.target && e.target.result) {
+                                imagePreview.src = e.target.result;
+                                imagePreviewContainer.style.display = 'block';
+                            }
+                        };
+                        
+                        reader.onerror = function() {
+                            console.error('Error al leer el archivo de imagen.');
+                            // La vista previa ya está oculta por defecto, no es necesario cambiarla aquí.
+                        };
+                        
+                        try {
+                            reader.readAsDataURL(file);
+                        } catch(err) {
+                            console.error('Error al intentar leer la imagen con readAsDataURL:', err);
+                            // El contenedor de vista previa ya está oculto por el reset inicial
                         }
-                    };
-                    
-                    // Capturar errores en la lectura del archivo
-                    reader.onerror = function() {
-                        console.error('Error al leer el archivo');
-                        imagePreviewContainer.style.display = 'none';
-                    };
-                    
-                    try {
-                        reader.readAsDataURL(imageInput.files[0]);
-                    } catch(err) {
-                        console.error('Error al procesar la imagen:', err);
+                    } else if (file.type.startsWith('video/')) {
+                        imagePreviewContainer.style.display = 'block';
+                        previewTitle.innerHTML = '<strong>Archivo seleccionado:</strong>';
+                        imagePreview.style.display = 'none'; // Ocultar el tag <img>
+                        mediaPreviewMessage.textContent = 'Video: ' + file.name + '. La vista previa no está disponible para videos.';
+                        mediaPreviewMessage.style.display = 'block';
+                        console.log('Archivo de video seleccionado:', file.name);
+                    } else {
+                        // Tipo de archivo no soportado para vista previa (ni imagen ni video)
+                        // El contenedor de vista previa ya está oculto por el reset inicial
+                        console.log('Tipo de archivo no soportado para vista previa:', file.name, file.type);
                     }
-                } else {
-                    // No hay archivo seleccionado
-                    imagePreview.src = '#';
-                    imagePreviewContainer.style.display = 'none';
+                    // Si no es ni imagen ni video (según los tipos aceptados), no se hace nada aquí.
                 }
+                // Si no hay archivos seleccionados (el 'else' de 'if (mediaInput.files && mediaInput.files[0])'),
+                // la vista previa ya está oculta y la imagen src limpia por las líneas al inicio de la función.
             }
             
             // Asignar el manejador de eventos
-            imageInput.addEventListener('change', handlePreview, false);
+            mediaInput.addEventListener('change', handlePreview, false);
             
             // Verificación inicial (por si hay una imagen ya seleccionada)
             handlePreview();

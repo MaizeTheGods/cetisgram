@@ -44,36 +44,45 @@
             </div>
         </div>
         
-        <% if (post.imageUrl) { %>
-            <div class="text-center mb-4">
-                <a href="#" class="post-image-link" data-bs-toggle="modal" data-bs-target="#imageModal">
-                    <img src="<%= post.imageUrl %>" alt="Imagen del post" class="img-fluid rounded post-image">
-                    <div class="overlay-zoom">
-                        <i class="fas fa-search-plus"></i>
-                    </div>
-                </a>
-            </div>
-            
-            <!-- Modal para vista previa de imagen -->
-            <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="imageModalLabel"><%= post.title %></h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        <% if (post.mediaUrl) { %>
+            <% if (post.mediaType === 'video') { %>
+                <div class="text-center mb-4">
+                    <video controls preload="metadata" class="img-fluid rounded" style="max-width: 100%; max-height: 600px; background-color: #000;" <% if (post.thumbnailUrl) { %>poster="<%= post.thumbnailUrl %>"<% } %>>
+                        <source src="<%= post.mediaUrl %>" type="<%= post.fileMimetype || 'video/mp4' %>"> <!-- Asumir video/mp4 si mimetype no está -->
+                        Tu navegador no soporta la etiqueta de video.
+                    </video>
+                </div>
+            <% } else if (post.mediaType === 'image') { %>
+                <div class="text-center mb-4">
+                    <a href="#" class="post-image-link" data-bs-toggle="modal" data-bs-target="#imageModal">
+                        <img src="<%= post.mediaUrl %>" alt="Imagen del post" class="img-fluid rounded post-image">
+                        <div class="overlay-zoom">
+                            <i class="fas fa-search-plus"></i>
                         </div>
-                        <div class="modal-body p-0">
-                            <img src="<%= post.imageUrl %>" alt="Imagen del post" class="img-fluid w-100">
-                        </div>
-                        <div class="modal-footer">
-                            <a href="<%= post.imageUrl %>" class="btn btn-primary" target="_blank">
-                                <i class="fas fa-external-link-alt me-1"></i> Ver imagen original
-                            </a>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </a>
+                </div>
+                
+                <!-- Modal para vista previa de imagen -->
+                <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="imageModalLabel"><%= post.title %></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            </div>
+                            <div class="modal-body p-0">
+                                <img src="<%= post.mediaUrl %>" alt="Imagen del post" class="img-fluid w-100">
+                            </div>
+                            <div class="modal-footer">
+                                <a href="<%= post.mediaUrl %>" class="btn btn-primary" target="_blank">
+                                    <i class="fas fa-external-link-alt me-1"></i> Ver imagen original
+                                </a>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            <% } %>
         <% } %>
         
         <div class="post-content mb-4">

@@ -216,14 +216,17 @@ router.get('/', async (req, res) => {
 
 // Formulario para crear un nuevo post
 router.get('/new', allowAnyUser, (req, res) => {
+    // Pasamos oldInput y errors por si venimos de un error de validación o creación
     res.render('posts/new', {
         title: 'Crear nuevo post',
-        user: req.session.user
+        user: req.session.user,
+        oldInput: {}, // Objeto vacío por defecto
+        errors: []    // Array vacío por defecto
     });
 });
 
 // Crear un nuevo post
-router.post('/new', allowAnyUser, upload.single('image'), async (req, res) => {
+router.post('/new', allowAnyUser, upload.single('mediaFile'), async (req, res) => {
     try {
         const { title, content } = req.body;
         
@@ -252,7 +255,25 @@ router.post('/new', allowAnyUser, upload.single('image'), async (req, res) => {
         // Si hay imagen, ya fue procesada por Cloudinary a través de multer
         if (req.file) {
             // Cloudinary ya ha subido la imagen y guardado la información en req.file
-            postData.imageUrl = req.file.path; // URL de Cloudinary
+            postData.mediaUrl = req.file.path; // URL de Cloudinary
+            postData.public_id = req.file.filename; // El 'filename' que multer-storage-cloudinary nos da es el public_id
+            postData.fileMimetype = req.file.mimetype; // Guardar el mimetype original
+
+            if (req.file.mimetype.startsWith('image')) {
+                postData.mediaType = 'image';
+            } else if (req.file.mimetype.startsWith('video')) {
+                postData.mediaType = 'video';
+                // Cloudinary devuelve información sobre las transformaciones eager en req.file.eager
+                // Si solicitamos un poster jpg, debería estar ahí.
+                if (req.file.eager && req.file.eager.length > 0) {
+                    const posterTransformation = req.file.eager.find(e => e.format === 'jpg');
+                    if (posterTransformation) {
+                        postData.thumbnailUrl = posterTransformation.secure_url || posterTransformation.url;
+                    }
+                }
+                // Si no hay eager transformation o no se encuentra el poster, thumbnailUrl no se establecerá.
+                // Podríamos tener una miniatura por defecto o manejarlo en el frontend.
+            }
         }
         
         // Guardar el post en Firestore
@@ -263,7 +284,8 @@ router.post('/new', allowAnyUser, upload.single('image'), async (req, res) => {
         console.error('Error al crear post:', error);
         res.render('posts/new', {
             title: 'Crear nuevo post',
-            error: 'Error al crear el post: ' + error.message,
+            error: 'Error al crear el post: ' + (error.message || error.toString()),
+            oldInput: req.body, // Para repoblar el formulario en caso de error
             user: req.session.user || null
         });
     }

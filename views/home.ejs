@@ -28,6 +28,18 @@
                 <% posts.forEach(post => { %>
                     <div class="col">
                         <div class="card h-100 shadow-sm">
+                            <% if (post.mediaUrl) { %>
+                                <% if (post.mediaType === 'video') { %>
+                                    <video controls preload="metadata" class="card-img-top" style="max-height: 400px; object-fit: cover;" <% if (post.thumbnailUrl) { %>poster="<%= post.thumbnailUrl %>"<% } %>>
+                                        <source src="<%= post.mediaUrl %>" type="<%= post.fileMimetype || 'video/mp4' %>"> <!-- Asumir video/mp4 si mimetype no está, o mejor, asegurar que siempre esté -->
+                                        Tu navegador no soporta la etiqueta de video.
+                                    </video>
+                                <% } else if (post.mediaType === 'image') { %>
+                                    <a href="/posts/<%= post.id %>">
+                                       <img src="<%= post.mediaUrl %>" class="card-img-top" alt="<%= post.title %>" style="max-height: 400px; object-fit: cover;">
+                                    </a>
+                                <% } %>
+                            <% } %>
                             <div class="card-body">
                                 <h3 class="card-title">
                                     <a href="/posts/<%= post.id %>" class="text-decoration-none text-dark"><%= post.title %></a>

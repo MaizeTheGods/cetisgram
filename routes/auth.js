@@ -9,29 +9,47 @@ const {
     onAuthStateChanged
 } = require('firebase/auth');
 const { doc, setDoc, getDoc } = require('firebase/firestore');
+const { body, validationResult } = require('express-validator');
 
 // Ruta para la página de registro
+// Reglas de validación para el registro
+const registerValidationRules = [
+    body('email').isEmail().withMessage('Debe ser un correo electrónico válido.').normalizeEmail(),
+    body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres.'),
+    body('username').notEmpty().withMessage('El nombre de usuario es obligatorio.').trim().escape()
+];
+
+// Reglas de validación para el inicio de sesión
+const loginValidationRules = [
+    body('email').isEmail().withMessage('Debe ser un correo electrónico válido.').normalizeEmail(),
+    body('password').notEmpty().withMessage('La contraseña es obligatoria.')
+];
+
 router.get('/register', (req, res) => {
     if (req.session.user) {
         return res.redirect('/');
     }
     res.render('auth/register', { 
         title: 'Registrarse en Cetisgram',
-        error: null 
+        errors: [], // Para mostrar errores de validación
+        oldInput: {} // Para repoblar el formulario
     });
 });
 
 // Procesar el registro
-router.post('/register', async (req, res) => {
+router.post('/register', registerValidationRules, async (req, res) => {
+    const errors = validationResult(req);
+    const { email, password, username } = req.body;
+
+    if (!errors.isEmpty()) {
+        return res.status(400).render('auth/register', {
+            title: 'Registrarse en Cetisgram',
+            errors: errors.array(),
+            oldInput: { email, username } // No repoblar password por seguridad
+        });
+    }
+
     try {
-        const { email, password, username } = req.body;
-        
-        if (!email || !password || !username) {
-            return res.render('auth/register', {
-                title: 'Registrarse en Cetisgram',
-                error: 'Todos los campos son obligatorios'
-            });
-        }
 
         // Crear usuario en Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -68,9 +86,12 @@ router.post('/register', async (req, res) => {
             errorMessage = 'Correo electrónico inválido';
         }
         
-        res.render('auth/register', {
+        // Si el error es de Firebase, lo mostramos como un error general.
+        // Los errores de validación ya se manejaron arriba.
+        res.status(400).render('auth/register', {
             title: 'Registrarse en Cetisgram',
-            error: errorMessage
+            errors: [{ msg: errorMessage }], // Presentar error de Firebase en el mismo formato que validationResult
+            oldInput: { email, username }
         });
     }
 });
@@ -82,21 +103,25 @@ router.get('/login', (req, res) => {
     }
     res.render('auth/login', { 
         title: 'Iniciar sesión en Cetisgram',
-        error: null 
+        errors: [],
+        oldInput: {}
     });
 });
 
 // Procesar el inicio de sesión
-router.post('/login', async (req, res) => {
+router.post('/login', loginValidationRules, async (req, res) => {
+    const errors = validationResult(req);
+    const { email, password } = req.body;
+
+    if (!errors.isEmpty()) {
+        return res.status(400).render('auth/login', {
+            title: 'Iniciar sesión en Cetisgram',
+            errors: errors.array(),
+            oldInput: { email } // No repoblar password
+        });
+    }
+
     try {
-        const { email, password } = req.body;
-        
-        if (!email || !password) {
-            return res.render('auth/login', {
-                title: 'Iniciar sesión en Cetisgram',
-                error: 'Correo y contraseña son requeridos'
-            });
-        }
 
         // Iniciar sesión con Firebase Authentication
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -127,9 +152,10 @@ router.post('/login', async (req, res) => {
             errorMessage = 'Demasiados intentos fallidos. Inténtalo más tarde';
         }
         
-        res.render('auth/login', {
+        res.status(400).render('auth/login', {
             title: 'Iniciar sesión en Cetisgram',
-            error: errorMessage
+            errors: [{ msg: errorMessage }],
+            oldInput: { email }
         });
     }
 });

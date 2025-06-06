@@ -46,9 +46,18 @@
                             <% } %>
                         </p>
                         
-                        <% if (post.imageUrl) { %>
+                        <% if (post.mediaUrl) { %>
                             <div class="text-center mb-3">
-                                <img src="<%= post.imageUrl %>" alt="Imagen del post" class="img-fluid rounded" style="max-height: 200px;">
+                                <% if (post.mediaType === 'video') { %>
+                                    <video controls preload="metadata" class="img-fluid rounded" style="max-height: 250px; max-width: 100%; object-fit: cover; background-color: #000;" <% if (post.thumbnailUrl) { %>poster="<%= post.thumbnailUrl %>"<% } %>>
+                                        <source src="<%= post.mediaUrl %>" type="<%= post.fileMimetype || 'video/mp4' %>">
+                                        Tu navegador no soporta la etiqueta de video.
+                                    </video>
+                                <% } else if (post.mediaType === 'image') { %>
+                                    <a href="/posts/<%= post.id %>">
+                                        <img src="<%= post.mediaUrl %>" alt="<%= post.title %>" class="img-fluid rounded" style="max-height: 250px; object-fit: cover;">
+                                    </a>
+                                <% } %>
                             </div>
                         <% } %>
                         

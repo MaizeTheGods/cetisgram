@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, getDoc } = require('firebase/firestore');
+const csrf = require('csurf');
 const app = express();
 
 // Inicializar Firebase
@@ -51,6 +52,18 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use(session(sessionConfig));
+
+// Protección CSRF
+// Nota: csurf debe ir DESPUÉS de session y cookieParser
+// y DESPUÉS de express.urlencoded para formularios, o express.json para JSON.
+const csrfProtection = csrf({ cookie: true }); // Puedes configurar 'cookie: false' si prefieres tokens en sesión.
+app.use(csrfProtection);
+
+// Middleware para hacer el token CSRF disponible en todas las vistas
+app.use((req, res, next) => {
+    res.locals.csrfToken = req.csrfToken();
+    next();
+});
 
 // Middleware para manejo de usuarios (autenticados y anónimos)
 app.use(async (req, res, next) => {
@@ -199,6 +212,21 @@ app.get('/perfil', (req, res) => {
             <p>Rol: ${req.session.user.role}</p>
             <p><a href="/">Volver al inicio</a></p>
         `);
+    }
+});
+
+// Manejador de errores CSRF (debe ir antes de otros manejadores de error generales y 404)
+app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+        console.warn('CSRF Token Inválido Detectado:', err);
+        // Puedes renderizar una página de error específica o redirigir
+        res.status(403).render('error', { 
+            title: 'Acción Prohibida', 
+            error: { message: 'Error de seguridad: Token CSRF inválido o ausente. Por favor, inténtalo de nuevo.' },
+            user: req.session.user || null // Asegúrate que 'user' esté disponible para el layout
+        });
+    } else {
+        next(err); // Pasa a otros manejadores de error si no es un error CSRF
     }
 });
 

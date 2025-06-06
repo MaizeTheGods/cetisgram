@@ -7,21 +7,26 @@
                 <h4 class="mb-0">Registro en Cetisgram</h4>
             </div>
             <div class="card-body">
-                <% if (locals.error) { %>
+                <% if (typeof errors !== 'undefined' && errors.length > 0) { %>
                     <div class="alert alert-danger" role="alert">
-                        <%= locals.error %>
+                        <ul class="mb-0">
+                            <% errors.forEach(function(error) { %>
+                                <li><%= error.msg %></li>
+                            <% }); %>
+                        </ul>
                     </div>
                 <% } %>
                 
                 <form action="/auth/register" method="POST">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <div class="mb-3">
                         <label for="username" class="form-label">Nombre de usuario</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                        <input type="text" class="form-control" id="username" name="username" value="<%= (typeof oldInput !== 'undefined' && oldInput.username) ? oldInput.username : '' %>" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="email" class="form-label">Correo electrónico</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                        <input type="email" class="form-control" id="email" name="email" value="<%= (typeof oldInput !== 'undefined' && oldInput.email) ? oldInput.email : '' %>" required>
                     </div>
                     
                     <div class="mb-3">
