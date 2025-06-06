@@ -59,21 +59,21 @@ app.use(async (req, res, next) => {
         // Estado inicial de la sesión
         console.log('[SESSION_MIDDLEWARE] Estado inicial de req.session.user:', JSON.stringify(req.session.user));
 
-        // Crear usuario anónimo solo si no existe NINGÚN usuario en sesión.
-        if (typeof req.session.user === 'undefined' || req.session.user === null) {
-            const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
-            req.session.user = {
-                uid: anonymousId,
-                isAnonymous: true,
-                username: 'Anónimo_' + anonymousId.substring(5, 10),
-                role: 'estudiante', // Rol por defecto para anónimos
-                isAdmin: false,
-                photoURL: null // Anónimos no tienen foto
-            };
-            console.log('[SESSION_MIDDLEWARE] Nuevo usuario anónimo creado en sesión:', JSON.stringify(req.session.user));
-        } else {
-            console.log('[SESSION_MIDDLEWARE] Usuario existente en sesión:', JSON.stringify(req.session.user));
-        }
+        // // Crear usuario anónimo solo si no existe NINGÚN usuario en sesión.
+        // if (typeof req.session.user === 'undefined' || req.session.user === null) {
+        //     const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
+        //     req.session.user = {
+        //         uid: anonymousId,
+        //         isAnonymous: true,
+        //         username: 'Anónimo_' + anonymousId.substring(5, 10),
+        //         role: 'estudiante', // Rol por defecto para anónimos
+        //         isAdmin: false,
+        //         photoURL: null // Anónimos no tienen foto
+        //     };
+        //     console.log('[SESSION_MIDDLEWARE] Nuevo usuario anónimo creado en sesión:', JSON.stringify(req.session.user));
+        // } else {
+        //     console.log('[SESSION_MIDDLEWARE] Usuario existente en sesión:', JSON.stringify(req.session.user));
+        // }
 
         // Si el usuario en sesión es autenticado (no anónimo), intentar refrescar sus datos desde Firestore.
         if (req.session.user && req.session.user.uid && !req.session.user.isAnonymous) {
