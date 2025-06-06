@@ -1,7 +1,7 @@
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
-const path = require('path'); // Necesario para fileFilter para obtener la extensión del archivo
+const path = require('path');
 
 // Configurar Cloudinary
 cloudinary.config({
@@ -20,22 +20,16 @@ const postsStorage = new CloudinaryStorage({
 
     if (file.mimetype.startsWith('video')) {
       resource_type = 'video';
-      allowed_formats_list = ['mp4', 'webm', 'ogg', 'mov']; // 'mov' es común también
-      // Para videos, Cloudinary puede generar un poster automáticamente.
-      // Podemos solicitar una transformación específica para el poster si es necesario,
-      // o dejar que Cloudinary elija. Por ahora, no aplicaremos transformaciones de imagen.
-      transformations = []; // No aplicar transformaciones de imagen a videos directamente aquí
-                            // Cloudinary puede generar un poster. Solicitaremos eager transformation para el poster.
+      allowed_formats_list = ['mp4', 'webm', 'ogg', 'mov'];
+      transformations = []; 
     }
 
     return {
       folder: 'cetisgram_posts',
       allowed_formats: allowed_formats_list,
       resource_type: resource_type,
-      // Eager transformation para generar un poster para videos
-      // Esto crea una imagen jpg del primer frame del video
       eager: resource_type === 'video' ? [{ width: 400, crop: 'pad', format: 'jpg' }] : [],
-      transformation: transformations // Aplicar solo a imágenes
+      transformation: transformations
     };
   }
 });
@@ -47,41 +41,72 @@ const profileStorage = new CloudinaryStorage({
     folder: 'cetisgram_profiles',
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
     transformation: [
-      // Versión para avatar (pequeño y cuadrado)
       { width: 150, height: 150, crop: 'fill', gravity: 'face' },
-      // También guardar una versión original recortada
-      { width: 500, height: 500, crop: 'limit' }
+      { width: 70, height: 70, crop: 'fill', gravity: 'face', named: 'thumb_70' } // Para la vista de 70x70
     ]
   }
 });
 
-// Configurar multer para posts
-const uploadPost = multer({ 
+// Configurar almacenamiento para imágenes en comentarios
+const commentsMediaStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'cetisgram_comments_media',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    resource_type: 'image',
+    transformation: [{ width: 600, crop: 'limit' }] // Limitar ancho a 600px
+  }
+});
+
+// Middleware de Multer para posts
+const uploadPosts = multer({ 
   storage: postsStorage,
-  limits: {
-    fileSize: 50 * 1024 * 1024 // Aumentado a 50MB para videos (ajustar según necesidad)
-  },
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB límite
   fileFilter: (req, file, cb) => {
-    const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-    const allowedVideoTypes = /mp4|webm|ogg|mov/;
-    
-    const isImage = allowedImageTypes.test(path.extname(file.originalname).toLowerCase()) && allowedImageTypes.test(file.mimetype);
-    const isVideo = allowedVideoTypes.test(path.extname(file.originalname).toLowerCase()) && (file.mimetype.startsWith('video/') || allowedVideoTypes.test(file.mimetype));
-
-    if (isImage || isVideo) {
-      cb(null, true);
-    } else {
-      cb(new Error('Tipo de archivo no soportado. Solo se permiten imágenes (jpg, png, gif, webp) y videos (mp4, webm, ogg, mov).'), false);
+    const filetypes = /jpeg|jpg|png|gif|webp|mp4|webm|ogg|mov/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
     }
+    cb(new Error(`Error: Tipo de archivo no soportado. Solo se permiten: ${filetypes}`));
   }
 });
 
-// Configurar multer para fotos de perfil
-const uploadProfile = multer({ 
+// Middleware de Multer para fotos de perfil
+const uploadProfilePic = multer({ 
   storage: profileStorage,
-  limits: {
-    fileSize: 2 * 1024 * 1024 // 2MB (menor límite para avatares)
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB límite
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif|webp/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error(`Error: Tipo de archivo no soportado. Solo se permiten: ${filetypes}`));
   }
 });
 
-module.exports = { cloudinary, upload: uploadPost, uploadProfile };
+// Middleware de Multer para imágenes en comentarios
+const uploadCommentMedia = multer({
+  storage: commentsMediaStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB límite para imágenes de comentarios
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif|webp/; // Solo imágenes
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error(`Error: Tipo de archivo no soportado para imágenes de comentario. Solo se permiten: ${filetypes}`));
+  }
+});
+
+module.exports = {
+  cloudinary,
+  uploadPosts,       // For posts (images/videos)
+  uploadProfilePic,  // For user profile pictures
+  uploadCommentMedia // For media in comments
+};
+
