@@ -30,7 +30,7 @@ app.use(cookieParser());
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'cetisgram-secret-key-12345',
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: { 
         secure: process.env.NODE_ENV === 'production', // Usar solo en producción con HTTPS
         maxAge: 24 * 60 * 60 * 1000, // 24 horas
