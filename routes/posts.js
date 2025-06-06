@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const { db } = require('../config/firebase');
-const { cloudinary, upload } = require('../config/cloudinary');
+const { cloudinary, uploadPosts } = require('../config/cloudinary');
 const { getAuth } = require('firebase/auth');
 const { 
     collection, 
@@ -227,7 +227,7 @@ router.get('/new', allowAnyUser, (req, res) => {
 });
 
 // Crear un nuevo post
-router.post('/new', allowAnyUser, upload.single('mediaFile'), async (req, res) => {
+router.post('/new', allowAnyUser, uploadPosts.single('mediaFile'), async (req, res) => {
     try {
         const { title, content } = req.body;
         
