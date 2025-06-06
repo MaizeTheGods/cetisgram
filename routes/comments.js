@@ -1,6 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { uploadCommentMedia } = require('../config/cloudinary');
+const allCloudinaryExports = require('../config/cloudinary');
+
+console.log('--- DEBUGGING routes/comments.js ---');
+console.log('Imported from ../config/cloudinary:', allCloudinaryExports);
+if (allCloudinaryExports) {
+    console.log('Keys in imported object:', Object.keys(allCloudinaryExports));
+    console.log('typeof allCloudinaryExports.uploadCommentMedia:', typeof allCloudinaryExports.uploadCommentMedia);
+    if (typeof allCloudinaryExports.uploadCommentMedia === 'function') {
+        console.log('uploadCommentMedia itself has keys (should include .single, .array etc.):', Object.keys(allCloudinaryExports.uploadCommentMedia));
+    } else if (allCloudinaryExports.uploadCommentMedia) {
+        console.log('uploadCommentMedia is not a function, but exists. Keys:', Object.keys(allCloudinaryExports.uploadCommentMedia));
+    } else {
+        console.log('allCloudinaryExports.uploadCommentMedia is undefined or null.');
+    }
+} else {
+    console.log('../config/cloudinary was imported as undefined/null itself.');
+}
+console.log('--- END DEBUGGING ---');
+
+const { uploadCommentMedia } = allCloudinaryExports; // Attempt destructuring after logging. If allCloudinaryExports is undefined, this will also error.
 const { db } = require('../config/firebase');
 const { 
     collection, doc, addDoc, getDoc, 
