@@ -38,16 +38,9 @@ const isAuthenticated = (req, res, next) => {
 router.post('/new', allowAnyUser, async (req, res) => {
     try {
         console.log('Recibiendo solicitud de comentario:', req.body);
-        const { postId, content, _csrf } = req.body;
+        const { postId, content } = req.body; // _csrf removed from destructuring as it's handled by middleware
         
-        // Verificar CSRF token
-        if (!_csrf || _csrf !== req.csrfToken()) {
-            console.error('Error de CSRF token');
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Token CSRF inválido' 
-            });
-        }
+        // CSRF token is now expected to be validated by the global csurf middleware
         
         if (!postId || !content) {
             console.error('Faltan datos:', { postId, content });

@@ -221,7 +221,8 @@ router.get('/new', allowAnyUser, (req, res) => {
         title: 'Crear nuevo post',
         user: req.session.user,
         oldInput: {}, // Objeto vacío por defecto
-        errors: []    // Array vacío por defecto
+        errors: [],    // Array vacío por defecto
+        csrfToken: req.csrfToken() // Pasar token CSRF a la plantilla
     });
 });
 
