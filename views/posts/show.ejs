@@ -418,7 +418,11 @@
                 
                 try {
                     fetch(`/comments/${commentId}`, {
-                        method: 'DELETE'
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ _csrf: csrfToken })
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -501,7 +505,11 @@
                     
                     try {
                         const response = await fetch(`/posts/${postId}`, {
-                            method: 'DELETE'
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ _csrf: csrfToken })
                         });
                         
                         const data = await response.json();
