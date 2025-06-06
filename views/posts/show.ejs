@@ -245,6 +245,8 @@
 </style>
 
 <script>
+    const csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";
+
     document.addEventListener('DOMContentLoaded', function() {
         // Manejo del formulario de comentarios con AJAX
         const commentForm = document.getElementById('commentForm');
@@ -255,7 +257,6 @@
                 // Obtener los valores del formulario
                 const postId = document.getElementById('postId').value;
                 const content = document.getElementById('commentContent').value.trim();
-                const csrfToken = document.querySelector('input[name="_csrf"]').value;
                 
                 // Validar que haya contenido
                 if (!content) {
@@ -270,14 +271,9 @@
                     const response = await fetch('/comments/new', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'CSRF-Token': csrfToken
+                            'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            postId,
-                            content,
-                            _csrf: csrfToken
-                        })
+                        body: JSON.stringify({ postId, content, _csrf: csrfToken })
                     });
                     
                     const data = await response.json();
@@ -464,7 +460,11 @@
                 const postId = this.getAttribute('data-post-id');
                 try {
                     const response = await fetch(`/posts/${postId}/like`, {
-                        method: 'POST'
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ _csrf: csrfToken })
                     });
                     
                     const data = await response.json();

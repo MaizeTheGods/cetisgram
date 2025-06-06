@@ -248,8 +248,9 @@ router.post('/new', allowAnyUser, upload.single('mediaFile'), async (req, res) =
             isPinned: false, // Por defecto, los posts no están fijados
             createdAt: new Date(),
             updatedAt: new Date(),
-            likes: 0,
-            views: 0
+            views: 0,
+            commentsCount: 0, // Inicializar contador de comentarios
+            likes: 0
         };
         
         // Si hay imagen, ya fue procesada por Cloudinary a través de multer
@@ -453,7 +454,8 @@ router.get('/:id', async (req, res) => {
             title: postData.title || 'Ver post',
             post: postData,
             comments,
-            user: req.session.user || null
+            user: req.session.user || null,
+            csrfToken: req.csrfToken() // Pasar token CSRF a la plantilla
         });
         
     } catch (error) {

@@ -3,7 +3,7 @@ const router = express.Router();
 const { db } = require('../config/firebase');
 const { 
     collection, doc, addDoc, getDoc, 
-    updateDoc, deleteDoc, query, where 
+    updateDoc, deleteDoc, query, where, increment 
 } = require('firebase/firestore');
 
 // Middleware que permite tanto a usuarios autenticados como anónimos
@@ -182,6 +182,13 @@ router.delete('/:id', isAuthenticated, async (req, res) => {
         
         // Eliminar el comentario
         await deleteDoc(commentRef);
+
+        // Actualizar el contador de comentarios en el post
+        const postRef = doc(db, 'posts', commentData.postId);
+        await updateDoc(postRef, {
+            commentsCount: increment(-1),
+            updatedAt: new Date()
+        });
         
         res.json({ success: true });
     } catch (error) {
