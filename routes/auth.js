@@ -52,7 +52,8 @@ router.post('/register', async (req, res) => {
             email: user.email,
             username: username,
             role: 'estudiante', // Rol por defecto para nuevos usuarios
-            isAdmin: false
+            isAdmin: false,
+            isAnonymous: false // Marcar explícitamente como no anónimo
         };
 
         res.redirect('/');
@@ -112,7 +113,8 @@ router.post('/login', async (req, res) => {
             username: userData.username,
             photoURL: userData.photoURL,
             role: userData.role || 'estudiante', // Asignar rol predeterminado si no existe
-            isAdmin: userData.role === 'admin' // Flag para acceso rápido a permisos de admin
+            isAdmin: userData.role === 'admin', // Flag para acceso rápido a permisos de admin
+            isAnonymous: false // Marcar explícitamente como no anónimo
         };
 
         res.redirect('/');
