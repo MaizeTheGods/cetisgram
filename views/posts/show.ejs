@@ -420,7 +420,8 @@
                     fetch(`/comments/${commentId}`, {
                         method: 'DELETE',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken // Añadir token CSRF como cabecera
                         },
                         body: JSON.stringify({ _csrf: csrfToken })
                     })

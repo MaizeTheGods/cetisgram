@@ -38,7 +38,7 @@ const isAuthenticated = (req, res, next) => {
 router.post('/new', allowAnyUser, async (req, res) => {
     try {
         console.log('Recibiendo solicitud de comentario:', req.body);
-        const { postId, content } = req.body; // _csrf removed from destructuring as it's handled by middleware
+        const { postId, content, parentId } = req.body; // _csrf removed, parentId added
         
         // CSRF token is now expected to be validated by the global csurf middleware
         
@@ -66,13 +66,37 @@ router.post('/new', allowAnyUser, async (req, res) => {
         
         console.log('✅ Post encontrado:', postSnap.data().title);
 
+        let depth = 0;
+        let resolvedParentId = parentId || null;
+
+        if (resolvedParentId) {
+            try {
+                const parentCommentRef = doc(db, 'comments', resolvedParentId);
+                const parentCommentSnap = await getDoc(parentCommentRef);
+                if (parentCommentSnap.exists()) {
+                    const parentCommentData = parentCommentSnap.data();
+                    depth = (parentCommentData.depth || 0) + 1;
+                } else {
+                    console.warn(`Parent comment with ID ${resolvedParentId} not found. Creating as top-level comment.`);
+                    resolvedParentId = null; // Tratar como comentario de nivel superior
+                }
+            } catch (error) {
+                console.error(`Error fetching parent comment ${resolvedParentId}:`, error);
+                // Decidir si fallar o tratar como top-level. Por ahora, top-level.
+                resolvedParentId = null;
+                depth = 0;
+            }
+        }
+
         // Datos para el comentario
         let commentData = {
             postId: postId, // Asegurarse de que postId sea string
             content: content.trim(),
             createdAt: new Date(),
             likes: 0,
-            edited: false
+            edited: false,
+            parentId: resolvedParentId,
+            depth: depth
         };
         
         console.log('📝 Datos del comentario a guardar:', commentData);
