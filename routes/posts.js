@@ -381,7 +381,7 @@ router.get('/:id', async (req, res) => {
         const commentsQuery = query(
             commentsRef,
             where('postId', '==', postId),
-            orderBy('createdAt', 'asc') // Changed to ascending for easier nested rendering
+            orderBy('createdAt', 'desc') // Reverted to descending to test index issue
         );
         
         const comments = [];
