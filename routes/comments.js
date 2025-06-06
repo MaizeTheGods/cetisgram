@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const { uploadCommentMedia } = require('../config/cloudinary');
 const { db } = require('../config/firebase');
 const { 
     collection, doc, addDoc, getDoc, 
-    updateDoc, deleteDoc, query, where, increment 
+    updateDoc, deleteDoc, query, where, increment, serverTimestamp 
 } = require('firebase/firestore');
 
 // Middleware que permite tanto a usuarios autenticados como anónimos
@@ -35,7 +36,7 @@ const isAuthenticated = (req, res, next) => {
 };
 
 // Agregar un comentario a un post (permite usuarios anónimos)
-router.post('/new', allowAnyUser, async (req, res) => {
+router.post('/new', allowAnyUser, uploadCommentMedia.single('commentMedia'), async (req, res) => {
     try {
         console.log('Recibiendo solicitud de comentario:', req.body);
         const { postId, content, parentId } = req.body; // _csrf removed, parentId added
@@ -90,14 +91,21 @@ router.post('/new', allowAnyUser, async (req, res) => {
 
         // Datos para el comentario
         let commentData = {
-            postId: postId, // Asegurarse de que postId sea string
+            postId: postId, 
             content: content.trim(),
-            createdAt: new Date(),
+            createdAt: serverTimestamp(), // Usar serverTimestamp para Firestore
             likes: 0,
             edited: false,
             parentId: resolvedParentId,
             depth: depth
         };
+
+        if (req.file) {
+            console.log('Archivo de comentario recibido:', req.file);
+            commentData.mediaUrl = req.file.path; 
+            commentData.mediaType = 'image'; 
+            commentData.mediaPublicId = req.file.filename; // Para posible eliminación futura de Cloudinary
+        }
         
         console.log('📝 Datos del comentario a guardar:', commentData);
         
@@ -131,24 +139,34 @@ router.post('/new', allowAnyUser, async (req, res) => {
             });
             console.log('✅ Contador de comentarios actualizado');
             
-            // Formatear la fecha para mostrarla
-            const formattedDate = commentData.createdAt.toLocaleString('es-MX', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            // Construir el objeto de comentario para la respuesta
+            const finalCommentDataForResponse = {
+                id: commentRef.id,
+                postId: commentData.postId,
+                content: commentData.content,
+                authorId: req.session.user.uid,
+                authorName: req.session.user.username || 'Usuario',
+                authorPhotoURL: req.session.user.photoURL || null,
+                isAnonymous: req.session.user.isAnonymous || false,
+                likes: commentData.likes,
+                edited: commentData.edited,
+                parentId: commentData.parentId,
+                depth: commentData.depth,
+                createdAt: new Date().toLocaleString('es-MX', { // Hora actual formateada para la respuesta inmediata
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                })
+            };
+
+            if (req.file) {
+                finalCommentDataForResponse.mediaUrl = req.file.path;
+                finalCommentDataForResponse.mediaType = 'image';
+            }
             
+            console.log('✅ Comentario listo para enviar como respuesta:', finalCommentDataForResponse);
             // Devolver respuesta exitosa
             res.json({ 
                 success: true, 
-                comment: {
-                    id: commentRef.id,
-                    ...commentData,
-                    createdAt: formattedDate,
-                    edited: false
-                }
+                comment: finalCommentDataForResponse
             });
             
         } catch (error) {

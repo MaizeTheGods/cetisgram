@@ -381,7 +381,7 @@ router.get('/:id', async (req, res) => {
         const commentsQuery = query(
             commentsRef,
             where('postId', '==', postId),
-            orderBy('createdAt', 'desc') // Reverted to descending to test index issue
+            orderBy('createdAt', 'asc') // Ensure ascending order for nesting
         );
         
         const comments = [];
@@ -401,9 +401,7 @@ router.get('/:id', async (req, res) => {
                 const commentData = {
                     id: commentDoc.id,
                     ...commentDoc.data(),
-                    createdAt: commentDoc.data().createdAt 
-                        ? new Date(commentDoc.data().createdAt.seconds * 1000).toLocaleString() 
-                        : 'Fecha desconocida'
+                    createdAt: commentDoc.data().createdAt ? commentDoc.data().createdAt.toDate() : new Date() // Convert Firestore Timestamp to JS Date
                 };
                 
                 // Obtener foto de perfil del autor del comentario
@@ -442,7 +440,29 @@ router.get('/:id', async (req, res) => {
             
             // Esperar a que todos los comentarios se procesen
             const processedComments = await Promise.all(commentPromises);
-            comments.push(...processedComments);
+            
+            // Función para anidar comentarios
+            function nestComments(commentList) {
+                const commentMap = {};
+                commentList.forEach(comment => {
+                    commentMap[comment.id] = { ...comment, children: [] };
+                });
+
+                const nestedComments = [];
+                commentList.forEach(comment => {
+                    // Asegurarse de que el objeto en commentMap se usa para la anidación
+                    const currentCommentNode = commentMap[comment.id]; 
+                    if (comment.parentId && commentMap[comment.parentId]) {
+                        commentMap[comment.parentId].children.push(currentCommentNode);
+                    } else {
+                        nestedComments.push(currentCommentNode);
+                    }
+                });
+                return nestedComments;
+            }
+
+            const nestedComments = nestComments(processedComments);
+            comments.push(...nestedComments); // Ahora 'comments' contendrá la estructura anidada
             
         } catch (error) {
             console.error('❌ Error al obtener comentarios:', error);
@@ -451,7 +471,8 @@ router.get('/:id', async (req, res) => {
         
         // 6. Renderizar la vista con los datos
         console.log('🎉 Todo listo, renderizando vista...');
-        return res.render('posts/show', {
+        console.log('📦 Pasando a la plantilla:', { post: postData, comments: comments, page, totalPages, user: req.session.user, csrfToken: req.csrfToken() });
+        res.render('posts/show', {
             title: postData.title || 'Ver post',
             post: postData,
             comments,

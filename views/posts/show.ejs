@@ -138,16 +138,25 @@
         <h3 class="mb-0 h5">Comentarios (<span id="commentCount"><%= comments.length %></span>)</h3>
     </div>
     <div class="card-body">
+        <div id="mainCommentFormArea">
         <% if (locals.user || true) { %>
+            <div id="commentFormMovableContainer">
             <!-- Formulario para añadir comentarios con AJAX -->
             <form id="commentForm" class="mb-4">
                 <input type="hidden" name="_csrf" value="<%= locals._csrf %>">
                 <input type="hidden" name="postId" id="postId" value="<%= post.id %>">
+    <input type="hidden" name="parentId" id="commentParentId" value=""> <!-- NUEVO CAMPO -->
                 <div class="mb-3">
                     <label for="commentContent" class="form-label">Añadir un comentario:</label>
                     <textarea class="form-control" id="commentContent" name="content" rows="3" required></textarea>
                 </div>
                 <div id="commentError" class="alert alert-danger mb-3" style="display: none;"></div>
+                <!-- Nuevo campo para adjuntar imagen -->
+                <div class="mb-3">
+                    <label for="commentMedia" class="form-label">Adjuntar imagen (opcional):</label>
+                    <input class="form-control form-control-sm" type="file" id="commentMedia" name="commentMedia" accept="image/jpeg, image/png, image/gif, image/webp">
+                </div>
+
                 <button type="submit" id="submitCommentBtn" class="btn btn-primary">
                     <i class="far fa-paper-plane"></i> <span id="submitBtnText">Publicar comentario</span>
                     <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display: none;"></span>
@@ -158,17 +167,33 @@
                     </div>
                 <% } %>
             </form>
+            </div> <!-- Cierre de commentFormMovableContainer -->
         <% } else { %>
             <div class="alert alert-info mb-4">
                 <p><a href="/auth/login">Inicia sesión</a> o <a href="/auth/register">regístrate</a> para dejar un comentario.</p>
             </div>
         <% } %>
+        </div> <!-- Cierre de mainCommentFormArea -->
         
         <!-- Lista de comentarios -->
         <div id="commentsList">
             <% if (comments && comments.length > 0) { %>
-                <% comments.forEach(comment => { %>
-                    <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>">
+                <%# Definición de la función para renderizar comentarios y sus hijos %>
+                <% 
+                function renderCommentAndChildren(comment, depth, post) { 
+                    // Fallbacks para datos del comentario
+                    comment = comment || {};
+                    comment.authorName = comment.authorName || 'Anónimo';
+                    comment.content = comment.content || '';
+                    comment.authorId = comment.authorId || '#';
+                    let displayDate = 'Fecha desconocida';
+                    if (comment.createdAt) {
+                        if (typeof comment.createdAt === 'string') displayDate = comment.createdAt;
+                        else if (comment.createdAt.seconds) displayDate = new Date(comment.createdAt.seconds * 1000).toLocaleString();
+                        else if (comment.createdAt instanceof Date) displayDate = comment.createdAt.toLocaleString();
+                    }
+                %>
+                    <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>" style="margin-left: <%= depth * 25 %>px; position: relative;">
                         <div class="d-flex justify-content-between">
                             <div class="d-flex align-items-center">
                                 <% if (comment.authorPhotoURL) { %>
@@ -198,8 +223,13 @@
                         </div>
                         
                         <div class="comment-content my-2">
-                            <%= comment.content %>
+                            <%- comment.content.replace(/\n/g, '<br>') %>
                         </div>
+                        <% if (comment.mediaUrl && comment.mediaType === 'image') { %>
+                            <div class="mt-2">
+                                <img src="<%= comment.mediaUrl %>" class="img-fluid rounded" alt="Imagen del comentario" style="max-height: 300px; max-width: 100%;">
+                            </div>
+                        <% } %>
                         
                         <% if (locals.user && (locals.user.uid === comment.authorId || locals.user.isAdmin)) { %>
                             <div class="comment-actions">
@@ -211,7 +241,35 @@
                                 </button>
                             </div>
                         <% } %>
+
+                        <!-- Sección de Responder -->
+                        <% if (locals.user) { // Solo mostrar si el usuario está logueado %>
+                        <div class="comment-reply-section mt-2">
+                            <button class="btn btn-sm btn-outline-secondary reply-comment-btn" 
+                                    data-comment-id="<%= comment.id %>" 
+                                    data-post-id="<%= post.id %>" 
+                                    data-comment-author="<%= comment.authorName %>">
+                                <i class="fas fa-reply"></i> Responder
+                            </button>
+                        </div>
+                        <% } %>
+
+                        <%# Renderizar hijos recursivamente %>
+                        <% if (comment.children && comment.children.length > 0) { %>
+                            <div class="comment-children mt-3">
+                                <% comment.children.forEach(childComment => { %>
+                                    <% renderCommentAndChildren(childComment, depth + 1, post); %>
+                                <% }); %>
+                            </div>
+                        <% } %>
                     </div>
+                <% 
+                } // Fin de la función renderCommentAndChildren
+                %>
+
+                <%# Iterar sobre los comentarios de nivel superior %>
+                <% comments.forEach(topLevelComment => { %>
+                    <% renderCommentAndChildren(topLevelComment, 0, post); %>
                 <% }); %>
             <% } else { %>
                 <div class="alert alert-light" id="noCommentsMessage">
@@ -248,6 +306,36 @@
     const csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";
 
     document.addEventListener('DOMContentLoaded', function() {
+        const mainCommentFormArea = document.getElementById('mainCommentFormArea');
+        const commentFormMovableContainer = document.getElementById('commentFormMovableContainer');
+        const commentParentIdInput = document.getElementById('commentParentId');
+        const commentContentInput = document.getElementById('commentContent');
+        const commentsList = document.getElementById('commentsList');
+
+        let replyStatusDiv = document.createElement('div');
+        replyStatusDiv.className = 'alert alert-info alert-dismissible fade show mt-2';
+        replyStatusDiv.setAttribute('role', 'alert');
+        replyStatusDiv.style.display = 'none'; 
+        if (commentFormMovableContainer && commentForm) { // Asegurarse que existen antes de insertar
+            commentFormMovableContainer.insertBefore(replyStatusDiv, commentFormMovableContainer.firstChild);
+        }
+
+        function cancelReply() {
+            if(commentParentIdInput) commentParentIdInput.value = '';
+            if(replyStatusDiv) {
+                replyStatusDiv.style.display = 'none';
+                replyStatusDiv.innerHTML = '';
+            }
+            if(mainCommentFormArea && commentFormMovableContainer) mainCommentFormArea.appendChild(commentFormMovableContainer);
+            if(commentContentInput) {
+                 commentContentInput.value = ''; 
+                 commentContentInput.placeholder = 'Añadir un comentario:';
+            }
+            const submitBtnText = document.getElementById('submitBtnText');
+            if(submitBtnText) submitBtnText.innerText = 'Publicar comentario';
+            hideCommentError(); // También ocultar errores al cancelar
+        }
+
         // Manejo del formulario de comentarios con AJAX
         const commentForm = document.getElementById('commentForm');
         if (commentForm) {
@@ -257,6 +345,8 @@
                 // Obtener los valores del formulario
                 const postId = document.getElementById('postId').value;
                 const content = document.getElementById('commentContent').value.trim();
+                const commentMediaFile = document.getElementById('commentMedia').files[0]; // Obtener el archivo
+                const parentId = commentParentIdInput ? commentParentIdInput.value : '';
                 
                 // Validar que haya contenido
                 if (!content) {
@@ -268,12 +358,21 @@
                 toggleCommentLoading(true);
                 
                 try {
+                    const formData = new FormData();
+                    formData.append('postId', postId);
+                    formData.append('content', content);
+                    formData.append('_csrf', csrfToken);
+                    if (commentMediaFile) {
+                        formData.append('commentMedia', commentMediaFile);
+                    }
+                    if (parentId) {
+                        formData.append('parentId', parentId);
+                    }
+
                     const response = await fetch('/comments/new', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ postId, content, _csrf: csrfToken })
+                        // No establecer Content-Type, el navegador lo hará con FormData
+                        body: formData
                     });
                     
                     const data = await response.json();
@@ -283,9 +382,15 @@
                     }
                     
                     if (data.success) {
-                        // Limpiar formulario
-                        document.getElementById('commentContent').value = '';
-                        hideCommentError();
+                        // Limpiar formulario y estado de respuesta
+                        if (parentId) {
+                            cancelReply(); 
+                        } else {
+                            if(commentContentInput) commentContentInput.value = '';
+                            const commentMediaInput = document.getElementById('commentMedia');
+                            if(commentMediaInput) commentMediaInput.value = '';
+                            hideCommentError();
+                        }
                         
                         // Agregar el nuevo comentario a la lista
                         addNewCommentToUI(data.comment);
@@ -307,6 +412,33 @@
                     showCommentError(error.message || 'Hubo un error al publicar el comentario. Inténtalo de nuevo.');
                 } finally {
                     toggleCommentLoading(false);
+                }
+            });
+        }
+
+        if (commentsList) {
+            commentsList.addEventListener('click', function(e) {
+                const replyButton = e.target.closest('.reply-comment-btn');
+                if (replyButton) {
+                    e.preventDefault();
+                    const commentId = replyButton.dataset.commentId;
+                    const authorName = replyButton.dataset.commentAuthor || 'este comentario';
+                    const targetCommentElement = document.getElementById(`comment-${commentId}`);
+
+                    if (targetCommentElement && commentParentIdInput && replyStatusDiv && commentFormMovableContainer && commentContentInput) {
+                        commentParentIdInput.value = commentId;
+                        replyStatusDiv.innerHTML = `Respondiendo a <strong>@${authorName}</strong> <button type="button" class="btn-close" aria-label="Close" id="cancelReplyBtn"></button>`;
+                        replyStatusDiv.style.display = 'block';
+                        
+                        const cancelBtn = document.getElementById('cancelReplyBtn');
+                        if(cancelBtn) cancelBtn.addEventListener('click', cancelReply);
+
+                        targetCommentElement.appendChild(commentFormMovableContainer);
+                        commentContentInput.placeholder = `Escribe tu respuesta a @${authorName}...`;
+                        const submitBtnText = document.getElementById('submitBtnText');
+                        if(submitBtnText) submitBtnText.innerText = 'Publicar respuesta';
+                        commentContentInput.focus();
+                    }
                 }
             });
         }
@@ -334,77 +466,114 @@
         }
         
         function addNewCommentToUI(comment) {
-            const commentsList = document.getElementById('commentsList');
+            const commentsListContainer = document.getElementById('commentsList'); // Renamed to avoid conflict
             const noCommentsMessage = document.getElementById('noCommentsMessage');
-            
-            // Si no hay comentarios, eliminar el mensaje
+
             if (noCommentsMessage) {
                 noCommentsMessage.remove();
             }
-            
-            // Crear el elemento del comentario
+
             const commentElement = document.createElement('div');
             commentElement.className = 'comment mb-4 border-bottom pb-3';
             commentElement.id = `comment-${comment.id}`;
-            
-            // Determinar si mostrar botones de edición/eliminación
+
+            const dFlexDiv = document.createElement('div');
+            dFlexDiv.className = 'd-flex';
+            if (comment.depth && comment.depth > 0) {
+                dFlexDiv.style.marginLeft = `${comment.depth * 25}px`;
+            }
+
             const currentUserId = '<%= locals.user ? locals.user.uid : "" %>';
             const isAdmin = '<%= locals.user ? locals.user.isAdmin : "false" %>' === 'true';
-            const showActions = currentUserId === comment.authorId || isAdmin;
-            
-            // Crear elemento de perfil
-            const profilePicture = comment.authorPhotoURL ? 
-                `<img src="${comment.authorPhotoURL}" class="rounded-circle me-2" width="70" height="70" alt="${comment.authorName}" style="object-fit: cover;">` : 
-                `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 70px; height: 70px;">
-                    <span class="text-white" style="font-size: 35px;">${(comment.authorName || 'A').charAt(0).toUpperCase()}</span>
+            const showEditDeleteActions = currentUserId === comment.authorId || isAdmin;
+
+            const profilePictureHTML = comment.authorPhotoURL ? 
+                `<img src="${comment.authorPhotoURL}" class="rounded-circle me-2" width="36" height="36" alt="${comment.authorName}" style="object-fit: cover;">` :
+                `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
+                    <span class="text-white" style="font-size: 18px;">${(comment.authorName || 'A').charAt(0).toUpperCase()}</span>
                 </div>`;
-            
-            // HTML del comentario
-            commentElement.innerHTML = `
-                <div class="d-flex">
-                    <a href="/posts/user/${comment.authorId}" class="text-decoration-none">
-                        ${profilePicture}
-                    </a>
-                    <div class="flex-grow-1">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h6 class="mb-0">
-                                <a href="/posts/user/${comment.authorId}" class="text-decoration-none text-dark fw-bold">
-                                    ${comment.authorName || 'Anónimo'}
-                                </a>
-                                ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
-                            </h6>
-                            <small class="text-muted">
-                                <i class="far fa-clock me-1"></i> ${comment.createdAt}
-                            </small>
-                        </div>
-                        
-                        <div class="comment-content my-2">
-                            ${comment.content.replace(/\n/g, '<br>')}
-                        </div>
-                        
-                        ${showActions ? `
-                        <div class="comment-actions mt-2">
-                            <button class="btn btn-sm btn-link text-primary p-0 me-2 edit-comment-btn" data-comment-id="${comment.id}">
-                                <i class="fas fa-edit me-1"></i>Editar
-                            </button>
-                            <button class="btn btn-sm btn-link text-danger p-0 delete-comment-btn" data-comment-id="${comment.id}">
-                                <i class="fas fa-trash me-1"></i>Eliminar
-                            </button>
-                        </div>
-                        ` : ''}
+
+            let actionButtonsHTML = '';
+            if (showEditDeleteActions) {
+                actionButtonsHTML += 
+                    `<button class="btn btn-sm btn-link text-primary p-0 me-2 edit-comment-btn" data-comment-id="${comment.id}">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </button>
+                    <button class="btn btn-sm btn-link text-danger p-0 delete-comment-btn" data-comment-id="${comment.id}">
+                        <i class="fas fa-trash me-1"></i>Eliminar
+                    </button>`;
+            }
+
+            if (comment.depth === undefined || comment.depth < 5) { // Max depth 4 can show reply button
+                 actionButtonsHTML += 
+                    `<button class="btn btn-sm btn-link text-secondary p-0 ms-2 reply-comment-btn" 
+                            data-comment-id="${comment.id}"
+                            data-comment-author="${comment.authorName || 'Anónimo'}">
+                        <i class="fas fa-reply"></i> Responder
+                    </button>`;
+            }
+
+            dFlexDiv.innerHTML = `
+                <a href="/posts/user/${comment.authorId}" class="text-decoration-none">
+                    ${profilePictureHTML}
+                </a>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="mb-0">
+                            <a href="/posts/user/${comment.authorId}" class="text-decoration-none text-dark fw-bold">
+                                ${comment.authorName || 'Anónimo'}
+                            </a>
+                            ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
+                        </h6>
+                        <small class="text-muted">
+                            <i class="far fa-clock me-1"></i> ${comment.createdAt}
+                        </small>
                     </div>
+                    <div class="comment-content my-2">
+                        ${comment.content.replace(/\n/g, '<br>')}
+                    </div>
+                    ${comment.mediaUrl && comment.mediaType === 'image' ? `
+                    <div class="mt-2 mb-2">
+                        <img src="${comment.mediaUrl}" class="img-fluid rounded" alt="Imagen del comentario" style="max-height: 200px; max-width: 100%;">
+                    </div>
+                    ` : ''}
+                    ${actionButtonsHTML ? `<div class="comment-actions mt-2">${actionButtonsHTML}</div>` : ''}
                 </div>
             `;
-            
-            // Agregar el comentario al principio de la lista
-            commentsList.insertBefore(commentElement, commentsList.firstChild);
-            
-            // Agregar event listener para el botón de eliminar
+            commentElement.appendChild(dFlexDiv);
+
+            if (comment.parentId) {
+                const parentCommentElement = document.getElementById(`comment-${comment.parentId}`);
+                if (parentCommentElement) {
+                    let childrenContainer = parentCommentElement.querySelector(':scope > .comment-children');
+                    if (!childrenContainer) {
+                        childrenContainer = document.createElement('div');
+                        childrenContainer.className = 'comment-children mt-3';
+                        parentCommentElement.appendChild(childrenContainer);
+                    }
+                    childrenContainer.appendChild(commentElement);
+                } else {
+                    console.warn('Parent comment element not found for reply, appending to main list.');
+                    if (commentsListContainer) commentsListContainer.insertBefore(commentElement, commentsListContainer.firstChild);
+                }
+            } else {
+                if (commentsListContainer) commentsListContainer.insertBefore(commentElement, commentsListContainer.firstChild);
+            }
+
             const deleteBtn = commentElement.querySelector('.delete-comment-btn');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', handleDeleteComment);
             }
+            // const editBtn = commentElement.querySelector('.edit-comment-btn');
+            // if (editBtn) { /* Add listener for edit */ }
+
+            const commentImage = commentElement.querySelector('img[alt="Imagen del comentario"]');
+            if (commentImage && typeof openImageModal === 'function') {
+                commentImage.style.cursor = 'pointer';
+                commentImage.addEventListener('click', () => openImageModal(commentImage.src));
+            }
         }
+
         
         function updateCommentCount(increment) {
             const commentCount = document.getElementById('commentCount');
