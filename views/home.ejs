@@ -60,7 +60,7 @@
                                         <% console.log('Post author info:', post.authorId, post.authorName, post.authorPhotoURL); %>
                                         <% if (post.authorPhotoURL) { %>
                                             <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
-                                                <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-1" width="36" height="36" alt="<%= post.authorName %>" style="object-fit: cover;">
+                                                <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-1" width="60" height="60" alt="<%= post.authorName %>" style="object-fit: cover;">
                                             </a>
                                         <% } else { %>
                                             <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">

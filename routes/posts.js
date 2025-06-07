@@ -471,7 +471,7 @@ router.get('/:id', async (req, res) => {
         
         // 6. Renderizar la vista con los datos
         console.log('🎉 Todo listo, renderizando vista...');
-        console.log('📦 Pasando a la plantilla:', { post: postData, comments: comments, page, totalPages, user: req.session.user, csrfToken: req.csrfToken() });
+        console.log('📦 Pasando a la plantilla:', { post: postData, comments: comments, user: req.session.user, csrfToken: req.csrfToken() });
         res.render('posts/show', {
             title: postData.title || 'Ver post',
             post: postData,

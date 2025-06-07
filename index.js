@@ -247,7 +247,7 @@ app.get('/test-root', (req, res) => {
 });
 
 // Puerto del servidor
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3689;
 app.listen(PORT, () => {
     console.log(`Servidor iniciado en http://localhost:${PORT}`);
 });
