@@ -30,6 +30,79 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     // END Navbar Toggler Fix
+
+    // Like button functionality
+    document.querySelectorAll('.like-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            if (!this.dataset.postId) return;
+
+            const postId = this.dataset.postId;
+            console.log('Like button clicked for postId:', postId);
+            const icon = this.querySelector('i');
+            console.log('Icon element:', icon);
+            const likesCountSpan = this.querySelector('.likes-count');
+            console.log('Likes count span:', likesCountSpan);
+
+            // Optimistic UI update for icon (optional, can make UI feel faster)
+            // const currentlyLiked = icon.classList.contains('fas');
+            // if (currentlyLiked) {
+            //     icon.classList.remove('fas'); icon.classList.add('far');
+            //     this.classList.remove('btn-danger'); this.classList.add('btn-outline-danger');
+            // } else {
+            //     icon.classList.remove('far'); icon.classList.add('fas');
+            //     this.classList.remove('btn-outline-danger'); this.classList.add('btn-danger');
+            // }
+
+            try {
+                const response = await fetch(`/posts/${postId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Debes iniciar sesión para dar me gusta.');
+                        // Consider redirecting or showing a login modal
+                        // window.location.href = '/auth/login'; 
+                    } else {
+                        // Revert optimistic UI update if there was one
+                        // console.error('Server error:', response.statusText);
+                        alert('Error al procesar la solicitud de me gusta.');
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('Data from server:', data);
+
+                if (data.success) {
+                    console.log('Like/Unlike successful, updating UI.');
+                    likesCountSpan.textContent = data.likesCount;
+                    if (data.isLiked) {
+                        icon.classList.remove('far');
+                        icon.classList.add('fas');
+                        this.classList.remove('btn-outline-danger');
+                        this.classList.add('btn-danger');
+                    } else {
+                        icon.classList.remove('fas');
+                        icon.classList.add('far');
+                        this.classList.remove('btn-danger');
+                        this.classList.add('btn-outline-danger');
+                    }
+                } else {
+                    // Revert optimistic UI update if there was one
+                    alert(data.message || 'No se pudo actualizar el "me gusta".');
+                }
+            } catch (error) {
+                // Revert optimistic UI update if there was one
+                console.error('Error en la función de like:', error);
+                alert('Ocurrió un error de red al intentar dar me gusta.');
+            }
+        });
+    });
     
     // Validación de contraseñas en el formulario de registro
     const registerForm = document.querySelector('form[action="/auth/register"]');

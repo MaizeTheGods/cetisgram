@@ -10,6 +10,8 @@ const {
 } = require('firebase/auth');
 const { doc, setDoc, getDoc } = require('firebase/firestore');
 const { body, validationResult } = require('express-validator');
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
 
 // Ruta para la página de registro
 // Reglas de validación para el registro
@@ -25,19 +27,20 @@ const loginValidationRules = [
     body('password').notEmpty().withMessage('La contraseña es obligatoria.')
 ];
 
-router.get('/register', (req, res) => {
+router.get('/register', csrfProtection, (req, res) => {
     if (req.session.user) {
         return res.redirect('/');
     }
     res.render('auth/register', { 
         title: 'Registrarse en Cetisgram',
         errors: [], // Para mostrar errores de validación
-        oldInput: {} // Para repoblar el formulario
+        oldInput: {}, // Para repoblar el formulario
+        csrfToken: req.csrfToken()
     });
 });
 
 // Procesar el registro
-router.post('/register', registerValidationRules, async (req, res) => {
+router.post('/register', registerValidationRules, csrfProtection, async (req, res) => {
     const errors = validationResult(req);
     const { email, password, username } = req.body;
 
@@ -97,19 +100,20 @@ router.post('/register', registerValidationRules, async (req, res) => {
 });
 
 // Ruta para la página de inicio de sesión
-router.get('/login', (req, res) => {
+router.get('/login', csrfProtection, (req, res) => {
     if (req.session.user) {
         return res.redirect('/');
     }
     res.render('auth/login', { 
         title: 'Iniciar sesión en Cetisgram',
         errors: [],
-        oldInput: {}
+        oldInput: {},
+        csrfToken: req.csrfToken()
     });
 });
 
 // Procesar el inicio de sesión
-router.post('/login', loginValidationRules, async (req, res) => {
+router.post('/login', loginValidationRules, csrfProtection, async (req, res) => {
     const errors = validationResult(req);
     const { email, password } = req.body;
 

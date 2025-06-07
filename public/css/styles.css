@@ -316,6 +316,19 @@ footer {
   background-color: var(--neutral-100);
 }
 
+
+/* Media en los posts (imágenes y videos) */
+.card > .card-img-top {
+  display: block;                     /* Asegura que se comporte como un bloque */
+  width: 100%;                        /* Ocupa todo el ancho del contenedor del post */
+  height: auto;                       /* Mantiene la proporción de aspecto inicial */
+  max-height: 70vh;                   /* Limita la altura máxima (ej. 70% de la altura del viewport) */
+  object-fit: contain;                /* Escala para caber dentro de los límites, manteniendo aspect ratio, sin recortar. Muestra todo el contenido. */
+  margin-bottom: var(--space-4);      /* Espacio consistente debajo del medio */
+  background-color: var(--neutral-100); /* Fondo sutil si 'object-fit: contain' deja barras (letterboxing) */
+  border-radius: var(--radius-md);    /* Un ligero redondeo a las esquinas del propio medio */
+}
+
 .comment-header {
   display: flex;
   align-items: center;

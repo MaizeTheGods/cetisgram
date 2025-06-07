@@ -3,6 +3,9 @@ const router = express.Router();
 const path = require('path');
 const { db } = require('../config/firebase');
 const { cloudinary, uploadPosts } = require('../config/cloudinary');
+const { isAuthenticated, isAdmin, allowAnyUser } = require('../middleware/authMiddleware');
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
 const { getAuth } = require('firebase/auth');
 const { 
     collection, 
@@ -17,35 +20,9 @@ const {
     orderBy, 
     limit, 
     startAfter, 
-    increment 
+    increment, 
+    setDoc 
 } = require('firebase/firestore');
-
-// Middleware para verificar autenticación
-const isAuthenticated = (req, res, next) => {
-    if (req.session.user) {
-        return next();
-    }
-    // Si no hay sesión, redirigir al login
-    res.redirect('/auth/login');
-};
-
-// Middleware que permite usuarios anónimos y autenticados
-const allowAnyUser = (req, res, next) => {
-    // Si es usuario autenticado o anónimo con sesión, permitir
-    if (req.session.user) {
-        return next();
-    }
-    // Si no hay sesión, crear una sesión anónima
-    const anonymousId = 'anon_' + Math.random().toString(36).substring(2, 15);
-    req.session.user = {
-        uid: anonymousId,
-        isAnonymous: true,
-        username: 'Anónimo_' + anonymousId.substring(5, 10),
-        role: 'estudiante', // Rol por defecto para usuarios anónimos
-        isAdmin: false
-    };
-    return next();
-};
 
 // La configuración de multer ahora viene de config/cloudinary.js
 
@@ -215,7 +192,7 @@ router.get('/', async (req, res) => {
 });
 
 // Formulario para crear un nuevo post
-router.get('/new', allowAnyUser, (req, res) => {
+router.get('/new', allowAnyUser, csrfProtection, (req, res) => { // Añadir csrfProtection aquí para que req.csrfToken() esté disponible
     // Pasamos oldInput y errors por si venimos de un error de validación o creación
     res.render('posts/new', {
         title: 'Crear nuevo post',
@@ -227,32 +204,34 @@ router.get('/new', allowAnyUser, (req, res) => {
 });
 
 // Crear un nuevo post
-router.post('/new', allowAnyUser, uploadPosts.single('mediaFile'), async (req, res) => {
+router.post('/new', allowAnyUser, uploadPosts.single('mediaFile'), csrfProtection, async (req, res) => {
     try {
         const { title, content } = req.body;
         
-        if (!req.file && (!title || !content)) {
+        if (!title || !title.trim()) {
             return res.render('posts/new', {
                 title: 'Crear nuevo post',
-                error: 'Si no subes una imagen, el título y el contenido son obligatorios.',
-                user: req.session.user
+                error: 'El título es obligatorio y no puede estar vacío.',
+                user: req.session.user,
+                csrfToken: req.csrfToken()
             });
         }
         
         // Datos base del post
         const postData = {
-            
-            title: title || '',
-            content: content || '',
+            title: title.trim(),
+            content: (content || '').trim(),
             authorId: req.session.user.uid,
             authorName: req.session.user.username || 'Anónimo',
+            authorPhotoURL: req.session.user.photoURL || null,
             authorRole: req.session.user.role || 'estudiante',
-            isPinned: false, // Por defecto, los posts no están fijados
+            isAnonymous: req.session.user.isAnonymous || false,
             createdAt: new Date(),
             updatedAt: new Date(),
             views: 0,
-            commentsCount: 0, // Inicializar contador de comentarios
-            likes: 0
+            commentsCount: 0,
+            likesCount: 0,
+            isPinned: false
         };
         
         // Si hay imagen, ya fue procesada por Cloudinary a través de multer
@@ -289,13 +268,14 @@ router.post('/new', allowAnyUser, uploadPosts.single('mediaFile'), async (req, r
             title: 'Crear nuevo post',
             error: 'Error al crear el post: ' + (error.message || error.toString()),
             oldInput: req.body, // Para repoblar el formulario en caso de error
-            user: req.session.user || null
+            user: req.session.user || null,
+            csrfToken: req.csrfToken()
         });
     }
 });
 
 // Ver un post específico
-router.get('/:id', async (req, res) => {
+router.get('/:id', csrfProtection, async (req, res) => {
     try {
         const postId = req.params.id;
         console.log('🔍 Obteniendo post con ID:', postId);
@@ -502,6 +482,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Dar like a un post
+/*
 router.post('/:id/like', isAuthenticated, async (req, res) => {
     try {
         const postId = req.params.id;
@@ -552,6 +533,7 @@ router.post('/:id/like', isAuthenticated, async (req, res) => {
         });
     }
 });
+*/
 
 // Eliminar un post (solo si eres el dueño o administrador)
 router.delete('/:id', isAuthenticated, async (req, res) => {
@@ -892,6 +874,53 @@ router.post('/user/:userId/follow', isAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error al seguir/dejar de seguir:', error);
         res.status(500).json({ success: false, message: 'Error al procesar la solicitud' });
+    }
+});
+
+// Ruta para dar "Me Gusta" o "No Me Gusta" a un post
+router.post('/:postId/like', isAuthenticated, csrfProtection, async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const userId = req.session.user.uid;
+
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Debes iniciar sesión para dar me gusta.' });
+        }
+
+        const postRef = doc(db, 'posts', postId);
+        const likeRef = doc(db, 'posts', postId, 'likers', userId); // Documento específico del usuario que da like
+        const likeDoc = await getDoc(likeRef);
+
+        let newLikesCount;
+        let isLikedNow;
+
+        if (likeDoc.exists()) {
+            // Usuario ya dio "me gusta", ahora quitarlo (unlike)
+            await deleteDoc(likeRef);
+            await updateDoc(postRef, {
+                likesCount: increment(-1)
+            });
+            isLikedNow = false;
+        } else {
+            // Usuario no ha dado "me gusta", ahora darlo (like)
+            await setDoc(likeRef, {
+                likedAt: new Date() // Puedes usar serverTimestamp() de Firestore si prefieres
+            });
+            await updateDoc(postRef, {
+                likesCount: increment(1)
+            });
+            isLikedNow = true;
+        }
+        
+        // Obtener el contador actualizado para devolverlo (útil para la UI)
+        const updatedPostDoc = await getDoc(postRef);
+        newLikesCount = updatedPostDoc.data().likesCount;
+
+        res.json({ success: true, isLiked: isLikedNow, likesCount: newLikesCount });
+
+    } catch (error) {
+        console.error('Error al procesar like/unlike:', error);
+        res.status(500).json({ success: false, message: 'Error al procesar la solicitud de me gusta.' });
     }
 });
 

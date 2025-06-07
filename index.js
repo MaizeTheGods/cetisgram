@@ -56,14 +56,8 @@ app.use(session(sessionConfig));
 // Protección CSRF
 // Nota: csurf debe ir DESPUÉS de session y cookieParser
 // y DESPUÉS de express.urlencoded para formularios, o express.json para JSON.
-const csrfProtection = csrf({ cookie: true }); // Puedes configurar 'cookie: false' si prefieres tokens en sesión.
-app.use(csrfProtection);
-
-// Middleware para hacer el token CSRF disponible en todas las vistas
-app.use((req, res, next) => {
-    res.locals.csrfToken = req.csrfToken();
-    next();
-});
+// Protección CSRF se aplicará a nivel de ruta donde sea necesario.
+const csrfProtection = csrf({ cookie: true });
 
 // Middleware para manejo de usuarios (autenticados y anónimos)
 app.use(async (req, res, next) => {

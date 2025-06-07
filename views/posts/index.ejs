@@ -48,29 +48,23 @@
                                 <i class="far fa-clock ms-2 me-1"></i> <%= post.createdAt %>
                             </small>
                         </p>
-                        
-                        <p class="card-text">
-                            <% if (post.content && post.content.length > 200) { %>
-                                <%= post.content.substring(0, 200) %>...
-                            <% } else { %>
-                                <%= post.content %>
-                            <% } %>
-                        </p>
-                        
+
                         <% if (post.mediaUrl) { %>
-                            <div class="text-center mb-3">
+                            <div class="text-center my-3">
                                 <% if (post.mediaType === 'video') { %>
-                                    <video controls preload="metadata" class="img-fluid rounded" style="max-height: 250px; max-width: 100%; object-fit: cover; background-color: #000;" <% if (post.thumbnailUrl) { %>poster="<%= post.thumbnailUrl %>"<% } %>>
+                                    <video controls preload="metadata" class="img-fluid rounded" style="max-height: 400px; max-width: 100%; object-fit: cover; background-color: #000;" <% if (post.thumbnailUrl) { %>poster="<%= post.thumbnailUrl %>"<% } %>>
                                         <source src="<%= post.mediaUrl %>" type="<%= post.fileMimetype || 'video/mp4' %>">
                                         Tu navegador no soporta la etiqueta de video.
                                     </video>
                                 <% } else if (post.mediaType === 'image') { %>
                                     <a href="/posts/<%= post.id %>">
-                                        <img src="<%= post.mediaUrl %>" alt="<%= post.title %>" class="img-fluid rounded" style="max-height: 250px; object-fit: cover;">
+                                        <img src="<%= post.mediaUrl %>" alt="<%= post.title %>" class="img-fluid rounded" style="max-height: 400px; object-fit: cover;">
                                     </a>
                                 <% } %>
                             </div>
                         <% } %>
+                        
+                        <% if (post.content && post.content.trim() !== '') { %><p class="card-text"><%= post.content %></p><% } %>
                         
                         <a href="/posts/<%= post.id %>" class="btn btn-sm btn-outline-primary">Leer más</a>
                     </div>
@@ -85,10 +79,11 @@
                                     <i class="far fa-eye me-1"></i> 
                                     <%= post.views || 0 %> vistas
                                 </span>
-                                <span>
-                                    <i class="far fa-heart me-1"></i> 
-                                    <%= post.likes || 0 %> likes
-                                </span>
+                                <button class="btn btn-sm btn-outline-danger like-btn" data-post-id="<%= post.id %>" style="padding: 0.25rem 0.5rem; font-size: .875em;">
+                                    <i class="far fa-heart"></i>
+                                    <span class="likes-count"><%= post.likesCount || 0 %></span>
+                                    <span class="d-none d-sm-inline"> Me gusta</span>
+                                </button>
                             </div>
                         </div>
                     </div>
