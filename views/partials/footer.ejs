@@ -46,28 +46,37 @@
             // Comprobar si el usuario ya ha visto el modal en esta sesión
             if (!sessionStorage.getItem('rulesShown')) {
                 // Mostrar el modal
-                const rulesModal = new bootstrap.Modal(document.getElementById('rulesModal'));
-                rulesModal.show();
-                
-                // Configurar el temporizador
-                let secondsLeft = 8;
-                const countdownElement = document.getElementById('countdown');
-                const closeButton = document.getElementById('closeRulesBtn');
-                const countdownText = document.getElementById('countdown-text');
-                
-                const timer = setInterval(function() {
-                    secondsLeft--;
-                    countdownElement.textContent = secondsLeft;
+                const rulesModalElement = document.getElementById('rulesModal');
+                if (rulesModalElement) {
+                    const rulesModalInstance = new bootstrap.Modal(rulesModalElement);
+                    rulesModalInstance.show();
                     
-                    if (secondsLeft <= 0) {
-                        clearInterval(timer);
-                        closeButton.removeAttribute('disabled');
-                        countdownText.innerHTML = '<i class="fas fa-check-circle text-success"></i> Ya puedes cerrar este mensaje';
+                    // Configurar el temporizador
+                    let secondsLeft = 8;
+                    const countdownElement = document.getElementById('countdown');
+                    const closeButton = document.getElementById('closeRulesBtn');
+                    const countdownText = document.getElementById('countdown-text');
+                    
+                    if (countdownElement && closeButton && countdownText) {
+                        const timer = setInterval(function() {
+                            secondsLeft--;
+                            countdownElement.textContent = secondsLeft;
+                            
+                            if (secondsLeft <= 0) {
+                                clearInterval(timer);
+                                closeButton.removeAttribute('disabled');
+                                countdownText.innerHTML = '<i class="fas fa-check-circle text-success"></i> Ya puedes cerrar este mensaje';
+                            }
+                        }, 1000);
+                    } else {
+                        console.warn('Cetisgram: Elementos del temporizador del modal de reglas no encontrados.');
                     }
-                }, 1000);
-                
-                // Marcar que el usuario ha visto el modal en esta sesión
-                sessionStorage.setItem('rulesShown', 'true');
+                    
+                    // Marcar que el usuario ha visto el modal en esta sesión
+                    sessionStorage.setItem('rulesShown', 'true');
+                } else {
+                    // console.log('Cetisgram: Modal de reglas (#rulesModal) no encontrado en esta página, no se mostrará.');
+                }
             }
         });
     </script>

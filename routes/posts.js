@@ -231,18 +231,19 @@ router.post('/new', allowAnyUser, uploadPosts.single('mediaFile'), async (req, r
     try {
         const { title, content } = req.body;
         
-        if (!title || !content) {
+        if (!req.file && (!title || !content)) {
             return res.render('posts/new', {
                 title: 'Crear nuevo post',
-                error: 'El título y contenido son obligatorios',
+                error: 'Si no subes una imagen, el título y el contenido son obligatorios.',
                 user: req.session.user
             });
         }
         
         // Datos base del post
         const postData = {
-            title,
-            content,
+            
+            title: title || '',
+            content: content || '',
             authorId: req.session.user.uid,
             authorName: req.session.user.username || 'Anónimo',
             authorRole: req.session.user.role || 'estudiante',

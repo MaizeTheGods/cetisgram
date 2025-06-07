@@ -100,7 +100,7 @@ footer {
   background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
   padding: var(--space-2) 0;
   position: relative;
-  z-index: 1000;
+  z-index: 1040; /* Aumentado para asegurar que esté sobre otros elementos con sticky-top */
 }
 
 .navbar::before {
@@ -720,6 +720,46 @@ h6 {
 .footer-copyright {
   color: var(--neutral-400);
   font-size: 0.875rem;
+}
+
+/* Estilos para el menú colapsable en móviles */
+@media (max-width: 991.98px) { /* Breakpoint lg de Bootstrap */
+  .navbar-collapse {
+    background-color: var(--primary-dark); /* Fondo opaco para el menú desplegado */
+    padding: var(--space-4);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    margin-top: var(--space-1);
+    box-shadow: var(--shadow-lg);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .navbar-collapse .navbar-nav .nav-link {
+    color: white !important; /* Asegurar texto blanco y opaco */
+    padding: var(--space-2) var(--space-3);
+    display: block; /* Que ocupen todo el ancho */
+    width: 100%;
+  }
+  
+  .navbar-collapse .navbar-nav .nav-link:hover {
+    background-color: var(--primary-color);
+    border-radius: var(--radius-sm);
+  }
+
+  .navbar-collapse .dropdown-menu {
+    background-color: var(--primary-dark);
+    border: none;
+    box-shadow: none;
+  }
+
+  .navbar-collapse .dropdown-item {
+    color: rgba(255,255,255,0.9);
+  }
+
+  .navbar-collapse .dropdown-item:hover {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
 }
 
 /* Estilos para el modal de reglas - con mejor diseño y efectos visuales modernos */

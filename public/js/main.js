@@ -11,6 +11,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
     const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+
+    // Navbar Toggler Fix: Ensure mobile menu toggles correctly
+    const navbarToggler = document.querySelector('.navbar-toggler');
+    const navbarCollapseTarget = document.getElementById('navbarNav');
+
+    if (navbarToggler && navbarCollapseTarget) {
+        navbarToggler.addEventListener('click', function() {
+            try {
+                const collapseInstance = bootstrap.Collapse.getOrCreateInstance(navbarCollapseTarget);
+                if (collapseInstance) {
+                    collapseInstance.toggle();
+                }
+            } catch (e) {
+                // Log actual errors during toggle, but not for general debugging.
+                console.error('Error toggling navbar:', e);
+            }
+        });
+    }
+    // END Navbar Toggler Fix
     
     // Validación de contraseñas en el formulario de registro
     const registerForm = document.querySelector('form[action="/auth/register"]');
