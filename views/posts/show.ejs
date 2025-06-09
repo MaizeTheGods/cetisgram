@@ -121,9 +121,12 @@
                             <i class="fas fa-edit"></i> Editar
                         </a>
                     <% } %>
-                    <button class="btn btn-sm btn-outline-danger me-1" id="deletePostBtn" data-post-id="<%= post.id %>">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
+                    <form method="POST" action="/posts/<%= post.id %>/delete" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.');">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </form>
                     <% if (locals.user.isAdmin) { %>
                         <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %>" id="pinPostBtn" data-post-id="<%= post.id %>">
                             <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
@@ -196,7 +199,7 @@
                         else if (comment.createdAt instanceof Date) displayDate = comment.createdAt.toLocaleString();
                     }
                 %>
-                    <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>" style="margin-left: <%= depth * 25 %>px; position: relative;">
+                    <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>" style="margin-left: <%= (Number(depth) || 0) * 25 %>px; position: relative;">
                         <div class="d-flex justify-content-between">
                             <div class="d-flex align-items-center">
                                 <% if (comment.authorPhotoURL) { %>
@@ -314,6 +317,7 @@
         const commentParentIdInput = document.getElementById('commentParentId');
         const commentContentInput = document.getElementById('commentContent');
         const commentsList = document.getElementById('commentsList');
+        const commentForm = document.getElementById('commentForm'); // Moved declaration up
 
         let replyStatusDiv = document.createElement('div');
         replyStatusDiv.className = 'alert alert-info alert-dismissible fade show mt-2';
@@ -340,8 +344,7 @@
         }
 
         // Manejo del formulario de comentarios con AJAX
-        const commentForm = document.getElementById('commentForm');
-        if (commentForm) {
+        if (commentForm) { // Declaration was moved up
             commentForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
@@ -669,38 +672,8 @@
             });
         }
         
-        // Manejo de eliminación de posts
-        const deletePostBtn = document.getElementById('deletePostBtn');
-        if (deletePostBtn) {
-            deletePostBtn.addEventListener('click', async function() {
-                if (confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.')) {
-                    const postId = this.getAttribute('data-post-id');
-                    
-                    try {
-                        const response = await fetch(`/posts/${postId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ _csrf: csrfToken })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            alert('Post eliminado correctamente');
-                            window.location.href = '/posts'; // Redireccionar a la lista de posts
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    } catch (error) {
-                        console.error('Error al eliminar post:', error);
-                        alert('Hubo un error al eliminar el post');
-                    }
-                }
-            });
-        }
-        
+        // La eliminación de posts ahora se maneja mediante un formulario POST.
+
         // Manejo de fijar/desfijar posts (solo para administradores)
         const pinPostBtn = document.getElementById('pinPostBtn');
         if (pinPostBtn) {

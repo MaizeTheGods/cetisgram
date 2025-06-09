@@ -6,6 +6,7 @@ const path = require('path');
 const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, getDoc } = require('firebase/firestore');
 const csrf = require('csurf');
+const flash = require('connect-flash'); // Import connect-flash
 const app = express();
 
 // Inicializar Firebase
@@ -52,6 +53,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use(session(sessionConfig));
+app.use(flash()); // Initialize connect-flash
 
 // Protección CSRF
 // Nota: csurf debe ir DESPUÉS de session y cookieParser

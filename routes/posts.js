@@ -924,4 +924,71 @@ router.post('/:postId/like', isAuthenticated, csrfProtection, async (req, res) =
     }
 });
 
+// Ruta para eliminar un post
+router.post('/:id/delete', isAuthenticated, csrfProtection, async (req, res) => {
+    const postId = req.params.id;
+    const userId = req.session.user.uid;
+    const isAdminUser = req.session.user.isAdmin;
+
+    try {
+        const postRef = doc(db, 'posts', postId);
+        const postSnap = await getDoc(postRef);
+
+        if (!postSnap.exists()) {
+            req.flash('error', 'Post no encontrado.');
+            return res.redirect('/');
+        }
+
+        const postData = postSnap.data();
+
+        // Verificar permisos: el usuario debe ser el autor o un administrador
+        if (postData.authorId !== userId && !isAdminUser) {
+            req.flash('error', 'No tienes permiso para eliminar este post.');
+            return res.redirect(`/posts/${postId}`);
+        }
+
+        // Eliminar de Cloudinary si existe media asociada
+        if (postData.public_id) {
+            let resource_type = 'image'; // Por defecto
+            if (postData.mediaType === 'video') {
+                resource_type = 'video';
+            }
+            await cloudinary.uploader.destroy(postData.public_id, { resource_type: resource_type });
+            console.log(`Media ${postData.public_id} eliminada de Cloudinary.`);
+        }
+
+        // Eliminar el post de Firestore
+        await deleteDoc(postRef);
+        console.log(`Post ${postId} eliminado de Firestore.`);
+
+        // Eliminar los likes asociados al post (subcolección 'likers')
+        const likersCollectionRef = collection(db, 'posts', postId, 'likers');
+        const likersSnapshot = await getDocs(likersCollectionRef);
+        const deleteLikersPromises = [];
+        likersSnapshot.forEach((docLiker) => {
+            deleteLikersPromises.push(deleteDoc(doc(db, 'posts', postId, 'likers', docLiker.id)));
+        });
+        await Promise.all(deleteLikersPromises);
+        console.log(`Likes del post ${postId} eliminados.`);
+
+        // Eliminar los comentarios asociados al post (subcolección 'comments')
+        const commentsCollectionRef = collection(db, 'posts', postId, 'comments');
+        const commentsSnapshot = await getDocs(commentsCollectionRef);
+        const deleteCommentsPromises = [];
+        commentsSnapshot.forEach((docComment) => {
+            deleteCommentsPromises.push(deleteDoc(doc(db, 'posts', postId, 'comments', docComment.id)));
+        });
+        await Promise.all(deleteCommentsPromises);
+        console.log(`Comentarios del post ${postId} eliminados.`);
+
+        req.flash('success', 'Post eliminado correctamente.');
+        res.redirect('/'); // O redirigir al perfil del usuario: /profile/${req.session.user.username}
+
+    } catch (error) {
+        console.error('Error al eliminar post:', error);
+        req.flash('error', 'Error al eliminar el post.');
+        res.redirect('back');
+    }
+});
+
 module.exports = router;
