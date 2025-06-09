@@ -120,19 +120,29 @@
                         <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
                             <i class="fas fa-edit"></i> Editar
                         </a>
-                    <% } %>
-                    <form method="POST" action="/posts/<%= post.id %>/delete" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.');">
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </form>
-                    <% if (locals.user.isAdmin) { %>
-                        <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %>" id="pinPostBtn" data-post-id="<%= post.id %>">
-                            <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
-                        </button>
-                    <% } %>
-                <% } %>
+                        // Nuevo bloque para show.ejs (Reemplaza desde la línea ~123)
+
+                        <% if (locals.user) { %>
+                            <% if (locals.user.uid === post.authorId) { %>
+                                <!-- Acciones para el autor del post (registrado o anónimo) -->
+                                <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                                <form method="POST" action="/posts/<%= post.id %>/delete" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.');">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            <% } %>
+                        
+                            <% if (locals.user.isAdmin) { %>
+                                <!-- Acciones adicionales solo para administradores -->
+                                <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %>" id="pinPostBtn" data-post-id="<%= post.id %>">
+                                    <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
+                                </button>
+                            <% } %>
+                        <% } %>
             </div>
         </div>
     </div>
