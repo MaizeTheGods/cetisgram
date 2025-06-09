@@ -1,750 +1,411 @@
 <%- include('../partials/header') %>
 
+<style>
+    /* Estilos para la imagen con zoom */
+    .post-image-link {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .post-image-link .overlay-zoom {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .post-image-link:hover .overlay-zoom {
+        opacity: 1;
+    }
+    /* Estilos para resaltar comentarios nuevos */
+    @keyframes highlight {
+        from { background-color: rgba(13, 110, 253, 0.2); }
+        to { background-color: transparent; }
+    }
+    .newly-added {
+        animation: highlight 2s ease-out;
+    }
+</style>
+
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/">Inicio</a></li>
         <li class="breadcrumb-item"><a href="/posts">Posts</a></li>
-        <li class="breadcrumb-item active" aria-current="page"><%=post.title%></li>
+        <li class="breadcrumb-item active" aria-current="page"><%= post.title %></li>
     </ol>
 </nav>
 
+<!-- Contenido del Post -->
 <div class="card shadow-sm mb-5">
     <div class="card-body">
         <h1 class="card-title"><%= post.title %></h1>
         
-        <div class="d-flex justify-content-between text-muted mb-4">
-            <div class="d-flex align-items-center">
+        <div class="d-flex justify-content-between align-items-center text-muted mb-4 flex-wrap">
+            <div class="d-flex align-items-center mb-2 mb-md-0">
                 <% if (post.authorPhotoURL) { %>
                     <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
-                        <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="70" height="70" alt="<%= post.authorName %>" style="object-fit: cover;">
+                        <img src="<%= post.authorPhotoURL %>" class="rounded-circle me-2" width="50" height="50" alt="<%= post.authorName %>" style="object-fit: cover;">
                     </a>
                 <% } else { %>
                     <a href="/posts/user/<%= post.authorId %>" class="text-decoration-none">
-                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 70px; height: 70px;">
-                            <span class="text-white" style="font-size: 35px;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 50px; height: 50px;">
+                            <span class="text-white" style="font-size: 1.5rem;"><%= (post.authorName || 'A').charAt(0).toUpperCase() %></span>
                         </div>
                     </a>
                 <% } %>
                 <div>
-                    <span><%= post.authorName || 'Anónimo' %></span>
-                    <% if (post.authorRole) { %>
-                        <span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %> ms-1">
-                            <%= post.authorRole %>
-                        </span>
-                    <% } %>
-                    <% if (post.isPinned) { %>
-                        <span class="badge bg-primary ms-1" title="Post fijado">
-                            <i class="fas fa-thumbtack me-1"></i>Fijado
-                        </span>
-                    <% } %>
+                    <strong class="d-block"><%= post.authorName || 'Anónimo' %></strong>
+                    <div>
+                        <% if (post.authorRole) { %><span class="badge <%= post.authorRole === 'admin' ? 'bg-danger' : 'bg-secondary' %>"><%= post.authorRole %></span><% } %>
+                        <% if (post.isPinned) { %><span class="badge bg-primary ms-1" title="Post fijado"><i class="fas fa-thumbtack"></i> Fijado</span><% } %>
+                    </div>
                 </div>
             </div>
-            <div>
-                <i class="far fa-clock me-1"></i> <%= post.createdAt %>
+            <div class="text-md-end">
+                <small><i class="far fa-clock me-1"></i> Publicado: <%= post.createdAt %></small>
             </div>
         </div>
         
         <% if (post.mediaUrl) { %>
-            <% if (post.mediaType === 'video') { %>
-                <div class="text-center mb-4">
+            <div class="text-center mb-4">
+                <% if (post.mediaType === 'video') { %>
                     <video controls preload="metadata" class="img-fluid rounded" style="max-width: 100%; max-height: 600px; background-color: #000;" <% if (post.thumbnailUrl) { %>poster="<%= post.thumbnailUrl %>"<% } %>>
-                        <source src="<%= post.mediaUrl %>" type="<%= post.fileMimetype || 'video/mp4' %>"> <!-- Asumir video/mp4 si mimetype no está -->
+                        <source src="<%= post.mediaUrl %>" type="<%= post.fileMimetype || 'video/mp4' %>">
                         Tu navegador no soporta la etiqueta de video.
                     </video>
-                </div>
-            <% } else if (post.mediaType === 'image') { %>
-                <div class="text-center mb-4">
+                <% } else if (post.mediaType === 'image') { %>
                     <a href="#" class="post-image-link" data-bs-toggle="modal" data-bs-target="#imageModal">
-                        <img src="<%= post.mediaUrl %>" alt="Imagen del post" class="img-fluid rounded post-image">
-                        <div class="overlay-zoom">
-                            <i class="fas fa-search-plus"></i>
-                        </div>
+                        <img src="<%= post.mediaUrl %>" alt="Imagen del post" class="img-fluid rounded">
+                        <div class="overlay-zoom"><i class="fas fa-search-plus"></i></div>
                     </a>
-                </div>
-                
-                <!-- Modal para vista previa de imagen -->
-                <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="imageModalLabel"><%= post.title %></h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                            </div>
-                            <div class="modal-body p-0">
-                                <img src="<%= post.mediaUrl %>" alt="Imagen del post" class="img-fluid w-100">
-                            </div>
-                            <div class="modal-footer">
-                                <a href="<%= post.mediaUrl %>" class="btn btn-primary" target="_blank">
-                                    <i class="fas fa-external-link-alt me-1"></i> Ver imagen original
-                                </a>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <% } %>
+                <% } %>
+            </div>
         <% } %>
         
-        <div class="post-content mb-4">
-            <%= post.content %>
+        <div class="post-content fs-5 mb-4" style="white-space: pre-wrap; word-break: break-word;">
+            <%- post.content %>
         </div>
         
         <div class="post-stats d-flex flex-wrap justify-content-between align-items-center border-top pt-3">
             <div class="d-flex align-items-center">
-                <% if (locals.user) { %>
-                    <button class="btn btn-sm btn-outline-danger like-btn me-2" data-post-id="<%= post.id %>">
-                        <i class="far fa-heart"></i>
-                        <span class="likes-count"><%= post.likesCount || 0 %></span>
-                        <span class="ms-1">Me gusta</span>
-                    </button>
-                <% } else { %>
-                    <span class="me-3">
-                        <i class="far fa-heart text-danger"></i>
-                        <span class="likes-count-display"><%= post.likesCount || 0 %></span>
-                        <span class="ms-1">Me gusta</span>
-                    </span>
-                <% } %>
-                
-                <span class="me-3">
-                    <i class="far fa-comment text-primary"></i> <%= comments.length %> Comentarios
-                </span>
-                
-                <span>
-                    <i class="far fa-eye text-secondary"></i> <%= post.views || 0 %> Vistas
-                </span>
+                <span class="me-3"><i class="far fa-heart text-danger"></i> <%= post.likesCount || 0 %> Me gusta</span>
+                <span class="me-3"><i class="far fa-comment text-primary"></i> <span id="commentCountHeader"><%= comments.length %></span> Comentarios</span>
+                <span><i class="far fa-eye text-secondary"></i> <%= post.views || 0 %> Vistas</span>
             </div>
             
-            <div>
-                <% if (locals.user && (locals.user.uid === post.authorId || locals.user.isAdmin)) { %>
+            <div class="mt-2 mt-md-0">
+                <% if (locals.user) { %>
                     <% if (locals.user.uid === post.authorId) { %>
-                        <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
-                            <i class="fas fa-edit"></i> Editar
-                        </a>
-                        // Nuevo bloque para show.ejs (Reemplaza desde la línea ~123)
-
-                        <% if (locals.user) { %>
-                            <% if (locals.user.uid === post.authorId) { %>
-                                <!-- Acciones para el autor del post (registrado o anónimo) -->
-                                <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1">
-                                    <i class="fas fa-edit"></i> Editar
-                                </a>
-                                <form method="POST" action="/posts/<%= post.id %>/delete" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.');">
-                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="fas fa-trash"></i> Eliminar
-                                    </button>
-                                </form>
-                            <% } %>
-                        
-                            <% if (locals.user.isAdmin) { %>
-                                <!-- Acciones adicionales solo para administradores -->
-                                <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %>" id="pinPostBtn" data-post-id="<%= post.id %>">
-                                    <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
-                                </button>
-                            <% } %>
-                        <% } %>
+                        <!-- Acciones para el autor del post (registrado o anónimo) -->
+                        <a href="/posts/<%= post.id %>/edit" class="btn btn-sm btn-outline-secondary me-1"><i class="fas fa-edit"></i> Editar</a>
+                        <form method="POST" action="/posts/<%= post.id %>/delete" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.');">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i> Eliminar</button>
+                        </form>
+                    <% } %>
+                    <% if (locals.user.isAdmin) { %>
+                        <!-- Acciones adicionales solo para administradores -->
+                        <button class="btn btn-sm <%= post.isPinned ? 'btn-primary' : 'btn-outline-primary' %> ms-2" id="pinPostBtn" data-post-id="<%= post.id %>">
+                            <i class="fas fa-thumbtack"></i> <%= post.isPinned ? 'Desfijar' : 'Fijar' %>
+                        </button>
+                    <% } %>
+                <% } %>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Sección de comentarios -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-light">
-        <h3 class="mb-0 h5">Comentarios (<span id="commentCount"><%= comments.length %></span>)</h3>
+<!-- Modal para vista previa de imagen -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body p-0 text-center bg-dark">
+                <img src="<%= post.mediaUrl %>" alt="Imagen del post" class="img-fluid">
+            </div>
+        </div>
     </div>
+</div>
+
+<!-- Sección de Comentarios -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light"><h3 class="mb-0 h5">Comentarios (<span id="commentCountBody"><%= comments.length %></span>)</h3></div>
     <div class="card-body">
         <div id="mainCommentFormArea">
-        <% if (locals.user || true) { %>
-            <div id="commentFormMovableContainer">
-            <!-- Formulario para añadir comentarios con AJAX -->
-            <form id="commentForm" class="mb-4">
-                <input type="hidden" name="_csrf" value="<%= locals._csrf %>">
-                <input type="hidden" name="postId" id="postId" value="<%= post.id %>">
-    <input type="hidden" name="parentId" id="commentParentId" value=""> <!-- NUEVO CAMPO -->
-                <div class="mb-3">
-                    <label for="commentContent" class="form-label">Añadir un comentario:</label>
-                    <textarea class="form-control" id="commentContent" name="content" rows="3" required></textarea>
+            <% if (locals.user) { %>
+                <div id="commentFormMovableContainer">
+                    <form id="commentForm" class="mb-4">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="hidden" name="postId" id="postId" value="<%= post.id %>">
+                        <input type="hidden" name="parentId" id="commentParentId" value="">
+                        <div class="mb-3">
+                            <textarea class="form-control" id="commentContent" name="content" rows="3" required placeholder="Añade un comentario..."></textarea>
+                        </div>
+                        <div id="commentError" class="alert alert-danger mb-3" style="display: none;"></div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="submit" id="submitCommentBtn" class="btn btn-primary">
+                                <span id="submitBtnText">Publicar</span>
+                                <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display: none;"></span>
+                            </button>
+                            <% if (locals.user.isAnonymous) { %>
+                                <small class="text-muted">Estás comentando como anónimo.</small>
+                            <% } %>
+                        </div>
+                    </form>
                 </div>
-                <div id="commentError" class="alert alert-danger mb-3" style="display: none;"></div>
-                <!-- Nuevo campo para adjuntar imagen -->
-                <div class="mb-3">
-                    <label for="commentMedia" class="form-label">Adjuntar imagen (opcional):</label>
-                    <input class="form-control form-control-sm" type="file" id="commentMedia" name="commentMedia" accept="image/jpeg, image/png, image/gif, image/webp">
-                </div>
+            <% } else { %>
+                <div class="alert alert-info">Debes <a href="/auth/login">iniciar sesión</a> para comentar.</div>
+            <% } %>
+        </div>
 
-                <button type="submit" id="submitCommentBtn" class="btn btn-primary">
-                    <i class="far fa-paper-plane"></i> <span id="submitBtnText">Publicar comentario</span>
-                    <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" style="display: none;"></span>
-                </button>
-                <% if (!locals.user) { %>
-                    <div class="mt-2">
-                        <small class="text-muted">Comentarás como anónimo. <a href="/auth/login">Inicia sesión</a> para usar tu nombre.</small>
-                    </div>
-                <% } %>
-            </form>
-            </div> <!-- Cierre de commentFormMovableContainer -->
-        <% } else { %>
-            <div class="alert alert-info mb-4">
-                <p><a href="/auth/login">Inicia sesión</a> o <a href="/auth/register">regístrate</a> para dejar un comentario.</p>
-            </div>
-        <% } %>
-        </div> <!-- Cierre de mainCommentFormArea -->
-        
-        <!-- Lista de comentarios -->
         <div id="commentsList">
             <% if (comments && comments.length > 0) { %>
-                <%# Definición de la función para renderizar comentarios y sus hijos %>
-                <% 
-                function renderCommentAndChildren(comment, depth, post) { 
-                    // Fallbacks para datos del comentario
-                    comment = comment || {};
-                    comment.authorName = comment.authorName || 'Anónimo';
-                    comment.content = comment.content || '';
-                    comment.authorId = comment.authorId || '#';
-                    let displayDate = 'Fecha desconocida';
-                    if (comment.createdAt) {
-                        if (typeof comment.createdAt === 'string') displayDate = comment.createdAt;
-                        else if (comment.createdAt.seconds) displayDate = new Date(comment.createdAt.seconds * 1000).toLocaleString();
-                        else if (comment.createdAt instanceof Date) displayDate = comment.createdAt.toLocaleString();
-                    }
+                <%
+                // Función para renderizar comentarios recursivamente
+                const renderComments = (commentList, depth = 0) => {
+                    commentList.forEach(comment => {
                 %>
-                    <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>" style="margin-left: <%= (Number(depth) || 0) * 25 %>px; position: relative;">
-                        <div class="d-flex justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <% if (comment.authorPhotoURL) { %>
+                        <div class="comment mb-4 border-bottom pb-3" id="comment-<%= comment.id %>" style="margin-left: <%= depth * 20 %>px;">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
                                     <a href="/posts/user/<%= comment.authorId %>" class="text-decoration-none">
-                                        <img src="<%= comment.authorPhotoURL %>" class="rounded-circle me-2" width="70" height="70" alt="<%= comment.authorName %>" style="object-fit: cover;">
+                                        <% if (comment.authorPhotoURL) { %>
+                                            <img src="<%= comment.authorPhotoURL %>" class="rounded-circle" width="50" height="50" alt="<%= comment.authorName %>" style="object-fit: cover;">
+                                        <% } else { %>
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                                <span class="text-white fs-5"><%= (comment.authorName || 'A').charAt(0).toUpperCase() %></span>
+                                            </div>
+                                        <% } %>
                                     </a>
-                                <% } else { %>
-                                    <a href="/posts/user/<%= comment.authorId %>" class="text-decoration-none">
-                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 70px; height: 70px;">
-                                            <span class="text-white" style="font-size: 35px;"><%= (comment.authorName || 'C').charAt(0).toUpperCase() %></span>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <strong class="mb-0"><%= comment.authorName || 'Anónimo' %></strong>
+                                            <% if (comment.isAnonymous) { %><span class="badge bg-secondary ms-1">Anónimo</span><% } %>
                                         </div>
-                                    </a>
-                                <% } %>
-                                <h6 class="mb-0">
-                                    <%= comment.authorName || 'Anónimo' %>
-                                    <% if (comment.isAnonymous) { %>
-                                        <span class="badge bg-secondary ms-1">Anónimo</span>
+                                        <small class="text-muted" title="<%= new Date(comment.createdAt).toLocaleString() %>">
+                                            <%= new Date(comment.createdAt).toLocaleDateString() %>
+                                            <% if (comment.edited) { %><span class="ms-1 fst-italic">(editado)</span><% } %>
+                                        </small>
+                                    </div>
+                                    <div class="comment-content my-2" style="white-space: pre-wrap; word-break: break-word;"><%- comment.content.replace(/\n/g, '<br>') %></div>
+                                    <div class="comment-actions">
+                                        <% if (locals.user) { %>
+                                            <button class="btn btn-sm btn-link text-secondary p-0 reply-comment-btn" data-comment-id="<%= comment.id %>" data-comment-author="<%= comment.authorName %>"><i class="fas fa-reply"></i> Responder</button>
+                                            <% if (locals.user.uid === comment.authorId || locals.user.isAdmin) { %>
+                                                <button class="btn btn-sm btn-link text-danger p-0 ms-2 delete-comment-btn" data-comment-id="<%= comment.id %>"><i class="fas fa-trash"></i> Eliminar</button>
+                                            <% } %>
+                                        <% } %>
+                                    </div>
+                                    <% if (comment.children && comment.children.length > 0) { %>
+                                        <div class="comment-children mt-3">
+                                            <% renderComments(comment.children, depth + 1); %>
+                                        </div>
                                     <% } %>
-                                </h6>
+                                </div>
                             </div>
-                            <small class="text-muted">
-                                <i class="far fa-clock me-1"></i> <%= displayDate %>
-                                <% if (comment.edited) { %>
-                                    <span class="ms-1">(Editado)</span>
-                                <% } %>
-                            </small>
                         </div>
-                        
-                        <div class="comment-content my-2">
-                            <%- comment.content.replace(/\n/g, '<br>') %>
-                        </div>
-                        <% if (comment.mediaUrl && comment.mediaType === 'image') { %>
-                            <div class="mt-2">
-                                <img src="<%= comment.mediaUrl %>" class="img-fluid rounded" alt="Imagen del comentario" style="max-height: 300px; max-width: 100%;">
-                            </div>
-                        <% } %>
-                        
-                        <% if (locals.user && (locals.user.uid === comment.authorId || locals.user.isAdmin)) { %>
-                            <div class="comment-actions">
-                                <button class="btn btn-sm btn-link text-primary edit-comment-btn" data-comment-id="<%= comment.id %>">
-                                    <i class="fas fa-edit"></i> Editar
-                                </button>
-                                <button class="btn btn-sm btn-link text-danger delete-comment-btn" data-comment-id="<%= comment.id %>">
-                                    <i class="fas fa-trash"></i> Eliminar
-                                </button>
-                            </div>
-                        <% } %>
-
-                        <!-- Sección de Responder -->
-                        <% if (locals.user) { // Solo mostrar si el usuario está logueado %>
-                        <div class="comment-reply-section mt-2">
-                            <button class="btn btn-sm btn-outline-secondary reply-comment-btn" 
-                                    data-comment-id="<%= comment.id %>" 
-                                    data-post-id="<%= post.id %>" 
-                                    data-comment-author="<%= comment.authorName %>">
-                                <i class="fas fa-reply"></i> Responder
-                            </button>
-                        </div>
-                        <% } %>
-
-                        <%# Renderizar hijos recursivamente %>
-                        <% if (comment.children && comment.children.length > 0) { %>
-                            <div class="comment-children mt-3">
-                                <% comment.children.forEach(childComment => { %>
-                                    <% renderCommentAndChildren(childComment, depth + 1, post); %>
-                                <% }); %>
-                            </div>
-                        <% } %>
-                    </div>
-                <% 
-                } // Fin de la función renderCommentAndChildren
+                <%
+                    });
+                };
+                renderComments(comments);
                 %>
-
-                <%# Iterar sobre los comentarios de nivel superior %>
-                <% comments.forEach(topLevelComment => { %>
-                    <% renderCommentAndChildren(topLevelComment, 0, post); %>
-                <% }); %>
             <% } else { %>
-                <div class="alert alert-light" id="noCommentsMessage">
-                    <p class="mb-0">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
-                </div>
+                <div class="alert alert-light text-center" id="noCommentsMessage">Aún no hay comentarios.</div>
             <% } %>
         </div>
     </div>
 </div>
 
-<!-- Script para el manejo de likes y eliminación de comentarios -->
-<style>
-    @keyframes highlight {
-        0% { background-color: rgba(13, 110, 253, 0.15); }
-        100% { background-color: transparent; }
-    }
-    .comment {
-        transition: background-color 0.3s ease;
-    }
-    .comment-actions {
-        opacity: 0.7;
-        transition: opacity 0.2s ease;
-    }
-    .comment:hover .comment-actions {
-        opacity: 1;
-    }
-    .comment-content {
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-</style>
-
 <script>
-    const csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = "<%= csrfToken %>";
+    const currentUser = <%- JSON.stringify(locals.user || null) %>;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const mainCommentFormArea = document.getElementById('mainCommentFormArea');
-        const commentFormMovableContainer = document.getElementById('commentFormMovableContainer');
-        const commentParentIdInput = document.getElementById('commentParentId');
-        const commentContentInput = document.getElementById('commentContent');
-        const commentsList = document.getElementById('commentsList');
-        const commentForm = document.getElementById('commentForm'); // Moved declaration up
-
-        let replyStatusDiv = document.createElement('div');
-        replyStatusDiv.className = 'alert alert-info alert-dismissible fade show mt-2';
-        replyStatusDiv.setAttribute('role', 'alert');
-        replyStatusDiv.style.display = 'none'; 
-        if (commentFormMovableContainer && commentForm) { // Asegurarse que existen antes de insertar
-            commentFormMovableContainer.insertBefore(replyStatusDiv, commentFormMovableContainer.firstChild);
-        }
-
-        function cancelReply() {
-            if(commentParentIdInput) commentParentIdInput.value = '';
-            if(replyStatusDiv) {
-                replyStatusDiv.style.display = 'none';
-                replyStatusDiv.innerHTML = '';
-            }
-            if(mainCommentFormArea && commentFormMovableContainer) mainCommentFormArea.appendChild(commentFormMovableContainer);
-            if(commentContentInput) {
-                 commentContentInput.value = ''; 
-                 commentContentInput.placeholder = 'Añadir un comentario:';
-            }
-            const submitBtnText = document.getElementById('submitBtnText');
-            if(submitBtnText) submitBtnText.innerText = 'Publicar comentario';
-            hideCommentError(); // También ocultar errores al cancelar
-        }
-
-        // Manejo del formulario de comentarios con AJAX
-        if (commentForm) { // Declaration was moved up
-            commentForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                // Obtener los valores del formulario
-                const postId = document.getElementById('postId').value;
-                const content = document.getElementById('commentContent').value.trim();
-                const commentMediaFile = document.getElementById('commentMedia').files[0]; // Obtener el archivo
-                const parentId = commentParentIdInput ? commentParentIdInput.value : '';
-                
-                // Validar que haya contenido
-                if (!content) {
-                    showCommentError('El comentario no puede estar vacío');
-                    return;
-                }
-                
-                // Mostrar spinner y deshabilitar botón
-                toggleCommentLoading(true);
-                
-                try {
-                    const formData = new FormData();
-                    formData.append('postId', postId);
-                    formData.append('content', content);
-                    formData.append('_csrf', csrfToken);
-                    if (commentMediaFile) {
-                        formData.append('commentMedia', commentMediaFile);
-                    }
-                    if (parentId) {
-                        formData.append('parentId', parentId);
-                    }
-
-                    const response = await fetch('/comments/new', {
-                        method: 'POST',
-                        // No establecer Content-Type, el navegador lo hará con FormData
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(data.message || 'Error al publicar el comentario');
-                    }
-                    
-                    if (data.success) {
-                        // Limpiar formulario y estado de respuesta
-                        if (parentId) {
-                            cancelReply(); 
-                        } else {
-                            if(commentContentInput) commentContentInput.value = '';
-                            const commentMediaInput = document.getElementById('commentMedia');
-                            if(commentMediaInput) commentMediaInput.value = '';
-                            hideCommentError();
-                        }
-                        
-                        // Agregar el nuevo comentario a la lista
-                        addNewCommentToUI(data.comment);
-                        
-                        // Actualizar contador
-                        updateCommentCount(1);
-                        
-                        // Desplazarse al nuevo comentario
-                        const newComment = document.getElementById(`comment-${data.comment.id}`);
-                        if (newComment) {
-                            newComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            newComment.style.animation = 'highlight 2s';
-                        }
-                    } else {
-                        throw new Error(data.message || 'Error al publicar el comentario');
-                    }
-                } catch (error) {
-                    console.error('Error al enviar comentario:', error);
-                    showCommentError(error.message || 'Hubo un error al publicar el comentario. Inténtalo de nuevo.');
-                } finally {
-                    toggleCommentLoading(false);
-                }
-            });
-        }
-
-        if (commentsList) {
-            commentsList.addEventListener('click', function(e) {
-                const replyButton = e.target.closest('.reply-comment-btn');
-                if (replyButton) {
-                    e.preventDefault();
-                    const commentId = replyButton.dataset.commentId;
-                    const authorName = replyButton.dataset.commentAuthor || 'este comentario';
-                    const targetCommentElement = document.getElementById(`comment-${commentId}`);
-
-                    if (targetCommentElement && commentParentIdInput && replyStatusDiv && commentFormMovableContainer && commentContentInput) {
-                        commentParentIdInput.value = commentId;
-                        replyStatusDiv.innerHTML = `Respondiendo a <strong>@${authorName}</strong> <button type="button" class="btn-close" aria-label="Close" id="cancelReplyBtn"></button>`;
-                        replyStatusDiv.style.display = 'block';
-                        
-                        const cancelBtn = document.getElementById('cancelReplyBtn');
-                        if(cancelBtn) cancelBtn.addEventListener('click', cancelReply);
-
-                        targetCommentElement.appendChild(commentFormMovableContainer);
-                        commentContentInput.placeholder = `Escribe tu respuesta a @${authorName}...`;
-                        const submitBtnText = document.getElementById('submitBtnText');
-                        if(submitBtnText) submitBtnText.innerText = 'Publicar respuesta';
-                        commentContentInput.focus();
-                    }
-                }
-            });
-        }
-        
-        // Funciones auxiliares para el formulario de comentarios
-        function showCommentError(message) {
-            const errorDiv = document.getElementById('commentError');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-        
-        function hideCommentError() {
-            const errorDiv = document.getElementById('commentError');
-            errorDiv.style.display = 'none';
-        }
-        
-        function toggleCommentLoading(isLoading) {
-            const submitBtn = document.getElementById('submitCommentBtn');
-            const submitText = document.getElementById('submitBtnText');
-            const spinner = document.getElementById('submitSpinner');
+    // --- MANEJO DEL FORMULARIO DE COMENTARIOS ---
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+        commentForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.querySelector('#submitBtnText').textContent;
             
-            submitBtn.disabled = isLoading;
-            spinner.style.display = isLoading ? 'inline-block' : 'none';
-            submitText.innerText = isLoading ? 'Publicando...' : 'Publicar comentario';
+            // UI: Deshabilitar botón y mostrar spinner
+            submitBtn.disabled = true;
+            submitBtn.querySelector('#submitBtnText').textContent = 'Publicando...';
+            submitBtn.querySelector('#submitSpinner').style.display = 'inline-block';
+            document.getElementById('commentError').style.display = 'none';
+
+            try {
+                const response = await fetch('/comments/new', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken },
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Error desconocido.');
+                }
+                
+                // Éxito: Limpiar formulario y añadir comentario a la UI
+                this.reset();
+                cancelReply(); // Mueve el form a su lugar original
+                addNewCommentToUI(data.comment);
+                updateCommentCount(1);
+                
+                // Scroll y highlight
+                const newCommentEl = document.getElementById(`comment-${data.comment.id}`);
+                newCommentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                newCommentEl.classList.add('newly-added');
+
+            } catch (error) {
+                document.getElementById('commentError').textContent = error.message;
+                document.getElementById('commentError').style.display = 'block';
+            } finally {
+                // UI: Restaurar botón
+                submitBtn.disabled = false;
+                submitBtn.querySelector('#submitBtnText').textContent = originalBtnText;
+                submitBtn.querySelector('#submitSpinner').style.display = 'none';
+            }
+        });
+    }
+
+    // --- LÓGICA DE RESPONDER Y BORRAR COMENTARIOS ---
+    document.getElementById('commentsList').addEventListener('click', async function(e) {
+        // Botón de Responder
+        if (e.target.closest('.reply-comment-btn')) {
+            const button = e.target.closest('.reply-comment-btn');
+            const commentId = button.dataset.commentId;
+            const authorName = button.dataset.commentAuthor;
+            const targetCommentElement = document.getElementById(`comment-${commentId}`);
+            
+            moveReplyForm(targetCommentElement, commentId, authorName);
+        }
+        // Botón de Eliminar
+        if (e.target.closest('.delete-comment-btn')) {
+            const button = e.target.closest('.delete-comment-btn');
+            const commentId = button.dataset.commentId;
+
+            if (confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
+                try {
+                    const response = await fetch(`/comments/${commentId}`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-Token': csrfToken }
+                    });
+                    const data = await response.json();
+                    if (!data.success) throw new Error(data.message);
+                    
+                    document.getElementById(`comment-${commentId}`).remove();
+                    updateCommentCount(-1);
+                } catch (error) {
+                    alert('Error al eliminar el comentario: ' + error.message);
+                }
+            }
+        }
+    });
+
+    // --- FUNCIONES AUXILIARES ---
+    const mainCommentFormArea = document.getElementById('mainCommentFormArea');
+    const commentFormMovableContainer = document.getElementById('commentFormMovableContainer');
+    
+    function moveReplyForm(targetContainer, parentId, authorName) {
+        const parentIdInput = document.getElementById('commentParentId');
+        const contentInput = document.getElementById('commentContent');
+
+        parentIdInput.value = parentId;
+        contentInput.placeholder = `Respondiendo a @${authorName}...`;
+        
+        let replyStatusDiv = targetContainer.querySelector('.reply-status');
+        if (!replyStatusDiv) {
+            replyStatusDiv = document.createElement('div');
+            replyStatusDiv.className = 'reply-status alert alert-info mt-2';
+            replyStatusDiv.innerHTML = `<span>Respondiendo a <strong>@${authorName}</strong></span> <button class="btn-close float-end"></button>`;
+            targetContainer.querySelector('.comment-actions').insertAdjacentElement('afterend', replyStatusDiv);
+            replyStatusDiv.querySelector('.btn-close').addEventListener('click', cancelReply);
         }
         
-        function addNewCommentToUI(comment) {
-            const commentsListContainer = document.getElementById('commentsList'); // Renamed to avoid conflict
-            const noCommentsMessage = document.getElementById('noCommentsMessage');
+        replyStatusDiv.insertAdjacentElement('afterend', commentFormMovableContainer);
+        contentInput.focus();
+    }
 
-            if (noCommentsMessage) {
-                noCommentsMessage.remove();
-            }
+    function cancelReply() {
+        const parentIdInput = document.getElementById('commentParentId');
+        const contentInput = document.getElementById('commentContent');
+        const replyStatusDiv = document.querySelector('.reply-status');
 
-            const commentElement = document.createElement('div');
-            commentElement.className = 'comment mb-4 border-bottom pb-3';
-            commentElement.id = `comment-${comment.id}`;
+        if (replyStatusDiv) replyStatusDiv.remove();
+        parentIdInput.value = '';
+        contentInput.placeholder = 'Añade un comentario...';
+        mainCommentFormArea.prepend(commentFormMovableContainer);
+    }
+    
+    function updateCommentCount(value) {
+        ['commentCountHeader', 'commentCountBody'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = parseInt(el.textContent) + value;
+        });
+    }
 
-            const dFlexDiv = document.createElement('div');
-            dFlexDiv.className = 'd-flex';
-            if (comment.depth && comment.depth > 0) {
-                dFlexDiv.style.marginLeft = `${comment.depth * 25}px`;
-            }
+    function addNewCommentToUI(comment) {
+        // Función para crear el HTML del comentario (reutilizable)
+        const createCommentHTML = (c, depth) => {
+            const profilePic = c.authorPhotoURL
+                ? `<img src="${c.authorPhotoURL}" class="rounded-circle" width="50" height="50" alt="${c.authorName}" style="object-fit: cover;">`
+                : `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;"><span class="text-white fs-5">${(c.authorName || 'A').charAt(0).toUpperCase()}</span></div>`;
+            
+            const replyButtonHTML = currentUser ? `<button class="btn btn-sm btn-link text-secondary p-0 reply-comment-btn" data-comment-id="${c.id}" data-comment-author="${c.authorName}"><i class="fas fa-reply"></i> Responder</button>` : '';
+            const deleteButtonHTML = (currentUser && (currentUser.uid === c.authorId || currentUser.isAdmin)) ? `<button class="btn btn-sm btn-link text-danger p-0 ms-2 delete-comment-btn" data-comment-id="${c.id}"><i class="fas fa-trash"></i> Eliminar</button>` : '';
 
-            const currentUserId = '<%= locals.user ? locals.user.uid : "" %>';
-            const isAdmin = '<%= locals.user ? locals.user.isAdmin : "false" %>' === 'true';
-            const showEditDeleteActions = currentUserId === comment.authorId || isAdmin;
-
-            const profilePictureHTML = comment.authorPhotoURL ? 
-                `<img src="${comment.authorPhotoURL}" class="rounded-circle me-2" width="36" height="36" alt="${comment.authorName}" style="object-fit: cover;">` :
-                `<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
-                    <span class="text-white" style="font-size: 18px;">${(comment.authorName || 'A').charAt(0).toUpperCase()}</span>
-                </div>`;
-
-            let actionButtonsHTML = '';
-            if (showEditDeleteActions) {
-                actionButtonsHTML += 
-                    `<button class="btn btn-sm btn-link text-primary p-0 me-2 edit-comment-btn" data-comment-id="${comment.id}">
-                        <i class="fas fa-edit me-1"></i>Editar
-                    </button>
-                    <button class="btn btn-sm btn-link text-danger p-0 delete-comment-btn" data-comment-id="${comment.id}">
-                        <i class="fas fa-trash me-1"></i>Eliminar
-                    </button>`;
-            }
-
-            if (comment.depth === undefined || comment.depth < 5) { // Max depth 4 can show reply button
-                 actionButtonsHTML += 
-                    `<button class="btn btn-sm btn-link text-secondary p-0 ms-2 reply-comment-btn" 
-                            data-comment-id="${comment.id}"
-                            data-comment-author="${comment.authorName || 'Anónimo'}">
-                        <i class="fas fa-reply"></i> Responder
-                    </button>`;
-            }
-
-            dFlexDiv.innerHTML = `
-                <a href="/posts/user/${comment.authorId}" class="text-decoration-none">
-                    ${profilePictureHTML}
-                </a>
-                <div class="flex-grow-1">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h6 class="mb-0">
-                            <a href="/posts/user/${comment.authorId}" class="text-decoration-none text-dark fw-bold">
-                                ${comment.authorName || 'Anónimo'}
-                            </a>
-                            ${comment.isAnonymous ? '<span class="badge bg-secondary ms-1">Anónimo</span>' : ''}
-                        </h6>
-                        <small class="text-muted">
-                            <i class="far fa-clock me-1"></i> ${comment.createdAt}
-                        </small>
+            return `
+                <div class="comment mb-4 border-bottom pb-3" id="comment-${c.id}" style="margin-left: ${depth * 20}px;">
+                    <div class="d-flex">
+                        <div class="flex-shrink-0"><a href="/posts/user/${c.authorId}" class="text-decoration-none">${profilePic}</a></div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="d-flex justify-content-between">
+                                <div><strong>${c.authorName || 'Anónimo'}</strong>${c.isAnonymous ? ' <span class="badge bg-secondary ms-1">Anónimo</span>' : ''}</div>
+                                <small class="text-muted">${new Date(c.createdAt).toLocaleDateString()}</small>
+                            </div>
+                            <div class="comment-content my-2" style="white-space: pre-wrap; word-break: break-word;">${c.content.replace(/\n/g, '<br>')}</div>
+                            <div class="comment-actions">${replyButtonHTML}${deleteButtonHTML}</div>
+                        </div>
                     </div>
-                    <div class="comment-content my-2">
-                        ${comment.content.replace(/\n/g, '<br>')}
-                    </div>
-                    ${comment.mediaUrl && comment.mediaType === 'image' ? `
-                    <div class="mt-2 mb-2">
-                        <img src="${comment.mediaUrl}" class="img-fluid rounded" alt="Imagen del comentario" style="max-height: 200px; max-width: 100%;">
-                    </div>
-                    ` : ''}
-                    ${actionButtonsHTML ? `<div class="comment-actions mt-2">${actionButtonsHTML}</div>` : ''}
                 </div>
             `;
-            commentElement.appendChild(dFlexDiv);
+        };
 
-            if (comment.parentId) {
-                const parentCommentElement = document.getElementById(`comment-${comment.parentId}`);
-                if (parentCommentElement) {
-                    let childrenContainer = parentCommentElement.querySelector(':scope > .comment-children');
-                    if (!childrenContainer) {
-                        childrenContainer = document.createElement('div');
-                        childrenContainer.className = 'comment-children mt-3';
-                        parentCommentElement.appendChild(childrenContainer);
-                    }
-                    childrenContainer.appendChild(commentElement);
-                } else {
-                    console.warn('Parent comment element not found for reply, appending to main list.');
-                    if (commentsListContainer) commentsListContainer.insertBefore(commentElement, commentsListContainer.firstChild);
+        const commentsList = document.getElementById('commentsList');
+        const noCommentsMsg = document.getElementById('noCommentsMessage');
+        if (noCommentsMsg) noCommentsMsg.remove();
+
+        const newCommentElement = document.createElement('div');
+        newCommentElement.innerHTML = createCommentHTML(comment, comment.depth || 0);
+
+        if (comment.parentId) {
+            const parentEl = document.getElementById(`comment-${comment.parentId}`);
+            if (parentEl) {
+                let childrenContainer = parentEl.querySelector('.comment-children');
+                if (!childrenContainer) {
+                    childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'comment-children mt-3';
+                    parentEl.querySelector('.comment-actions').insertAdjacentElement('afterend', childrenContainer);
                 }
-            } else {
-                if (commentsListContainer) commentsListContainer.insertBefore(commentElement, commentsListContainer.firstChild);
+                childrenContainer.appendChild(newCommentElement.firstElementChild);
             }
-
-            const deleteBtn = commentElement.querySelector('.delete-comment-btn');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', handleDeleteComment);
-            }
-            // const editBtn = commentElement.querySelector('.edit-comment-btn');
-            // if (editBtn) { /* Add listener for edit */ }
-
-            const commentImage = commentElement.querySelector('img[alt="Imagen del comentario"]');
-            if (commentImage && typeof openImageModal === 'function') {
-                commentImage.style.cursor = 'pointer';
-                commentImage.addEventListener('click', () => openImageModal(commentImage.src));
-            }
+        } else {
+            commentsList.prepend(newCommentElement.firstElementChild);
         }
-
-        
-        function updateCommentCount(increment) {
-            const commentCount = document.getElementById('commentCount');
-            const currentCount = parseInt(commentCount.innerText);
-            commentCount.innerText = currentCount + increment;
-        }
-        
-        function handleDeleteComment() {
-            if (confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
-                const commentId = this.getAttribute('data-comment-id');
-                
-                try {
-                    fetch(`/comments/${commentId}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': csrfToken // Añadir token CSRF como cabecera
-                        },
-                        body: JSON.stringify({ _csrf: csrfToken })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Eliminar el comentario de la UI
-                            document.getElementById(`comment-${commentId}`).remove();
-                            
-                            // Actualizar contador
-                            updateCommentCount(-1);
-                            
-                            // Mostrar mensaje si no hay comentarios
-                            if (parseInt(document.getElementById('commentCount').innerText) === 0) {
-                                const commentsList = document.getElementById('commentsList');
-                                commentsList.innerHTML = `
-                                    <div class="alert alert-light" id="noCommentsMessage">
-                                        <p class="mb-0">Aún no hay comentarios. ¡Sé el primero en comentar!</p>
-                                    </div>
-                                `;
-                            }
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Hubo un error al eliminar el comentario');
-                    });
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Hubo un error al eliminar el comentario');
-                }
-            }
-        }
-
-        // Manejo de likes
-        const likeButton = document.getElementById('likeButton');
-        if (likeButton) {
-            likeButton.addEventListener('click', async function() {
-                const postId = this.getAttribute('data-post-id');
-                try {
-                    const response = await fetch(`/posts/${postId}/like`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ _csrf: csrfToken })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        const likeCount = document.getElementById('likeCount');
-                        const currentLikes = parseInt(likeCount.innerText);
-                        
-                        if (data.action === 'liked') {
-                            likeCount.innerText = currentLikes + 1;
-                            likeButton.classList.remove('btn-outline-danger');
-                            likeButton.classList.add('btn-danger');
-                        } else {
-                            likeCount.innerText = currentLikes - 1;
-                            likeButton.classList.remove('btn-danger');
-                            likeButton.classList.add('btn-outline-danger');
-                        }
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Hubo un error al procesar tu like');
-                }
-            });
-        }
-        
-        // La eliminación de posts ahora se maneja mediante un formulario POST.
-
-        // Manejo de fijar/desfijar posts (solo para administradores)
-        const pinPostBtn = document.getElementById('pinPostBtn');
-        if (pinPostBtn) {
-            pinPostBtn.addEventListener('click', async function() {
-                const postId = this.getAttribute('data-post-id');
-                const isPinned = this.textContent.trim().includes('Desfijar');
-                const action = isPinned ? 'desfijar' : 'fijar';
-                
-                if (confirm(`¿Estás seguro de que quieres ${action} este post?`)) {
-                    try {
-                        const response = await fetch(`/posts/${postId}/pin`, {
-                            method: 'POST'
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            // Actualizar el botón
-                            if (data.isPinned) {
-                                this.innerHTML = '<i class="fas fa-thumbtack"></i> Desfijar';
-                                this.classList.remove('btn-outline-primary');
-                                this.classList.add('btn-primary');
-                                
-                                // Añadir el badge de fijado si no existe
-                                const authorInfo = document.querySelector('.d-flex.justify-content-between.text-muted.mb-4 > div:first-child');
-                                if (!authorInfo.querySelector('.badge.bg-primary')) {
-                                    const pinnedBadge = document.createElement('span');
-                                    pinnedBadge.className = 'badge bg-primary ms-1';
-                                    pinnedBadge.title = 'Post fijado';
-                                    pinnedBadge.innerHTML = '<i class="fas fa-thumbtack me-1"></i>Fijado';
-                                    authorInfo.appendChild(pinnedBadge);
-                                }
-                            } else {
-                                this.innerHTML = '<i class="fas fa-thumbtack"></i> Fijar';
-                                this.classList.remove('btn-primary');
-                                this.classList.add('btn-outline-primary');
-                                
-                                // Eliminar el badge de fijado si existe
-                                const pinnedBadge = document.querySelector('.badge.bg-primary[title="Post fijado"]');
-                                if (pinnedBadge) {
-                                    pinnedBadge.remove();
-                                }
-                            }
-                            
-                            alert(`Post ${data.isPinned ? 'fijado' : 'desfijado'} correctamente`);
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    } catch (error) {
-                        console.error('Error al fijar/desfijar post:', error);
-                        alert('Hubo un error al procesar tu solicitud');
-                    }
-                }
-            });
-        }
-        
-        // Manejo de eliminación de comentarios (para comentarios existentes)
-        document.querySelectorAll('.delete-comment-btn').forEach(button => {
-            button.addEventListener('click', handleDeleteComment);
-        });
-    });
+    }
+});
 </script>
 
 <%- include('../partials/footer') %>
